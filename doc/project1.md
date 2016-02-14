@@ -28,7 +28,7 @@ static struct lock sleepers_lock;
 struct thread {
 	...
 	/* Shared between thread.c, synch.c, and timer.c. */
-    struct list_elem elem;		/* List element. */
+	struct list_elem elem;		/* List element. */
 
 	/* Owned by timer.c. */
 	int64_t alarm_time;			/* Detects when a thread should wake up. */
@@ -48,7 +48,7 @@ We added `sleepers_lock` because if a timer interrupt occurs while a thread is t
 
 Since any thread that adds itself to `sleepers` blocks itself immediately afterward, it cannot exit and be deallocated. Furthermore, it should be removed from the ready list and cannot be blocked for any other reason, which is why we can safely add it to the `sleepers` list and then wake it up later.
 
-It is possible for a thread to be interrupted after adding itself to `sleepers` but *before* blocking itself. We do not want a timer interrupt to pop an unblocked thread off of `sleepers` before the thread resumes, so we will perform a status check on every thread before removing it from the list.
+However, it is possible for a thread to be interrupted after adding itself to `sleepers` but *before* blocking itself. We do not want a timer interrupt to pop an unblocked thread off of `sleepers`, so we will perform a status check on every thread before removing it from the list.
 
 ### Rationale
 
@@ -67,28 +67,37 @@ struct thread {
 	/* Owned by thread.c. */
 	int priority;				/* Effective priority. */
 	int base_priority;			/* Base priority. */
+	
+	/* TODO: Some sort of list of held locks */
 	...
 };
+
+struct lock {
+	...
+	int priority;				/* The max priority of waiters */
+}
 
 /* These functions will be modified to get/set the current thread's
  * base priority. This may change its effective priority, which may
  * cause it to relinquish the processor. */
 void thread_set_priority (int new_priority);
 void thread_get_priority (void);
-
-/* These are the only two functions that perform inserts into the
- * ready list. They will be modified to use list_insert_ordered()
- * instead of list_push_back(). */
-void thread_unblock (struct thread *t);
-void thread_yield (void);
 ```
 
 ### Algorithms
 
-##### 
+##### Resetting the base priority
+The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks. If this value is lower than the old priority value, the thread defensively yields the processor.
+
+##### Choosing the next thread to run
+We will modify `next_thread_to_run()` to use `list_max()` instead of `list_pop_front()` to find the next thread to run. After being chosen, the thread will be popped off of the ready list with `list_remove()`.
 
 ### Synchronization
+
 ### Rationale
+
+##### Ready List
+We considered three implementations: using a priority queue, or using a linked list with either `list_insert_ordered()` or `list_max()`. We chose the last option because, despite being slow, it has two huge advantages. First, the underlying data structure does not need to be sorted (or re-sorted every time effective priority values change). Second, we only need to change the code inside `next_thread_to_run()`, which is already required to have interrupts disabled on entry. This makes max removal simpler and safer to implement than the other two solutions.
 
 # Task 3: Multi-level Feedback Queue Scheduler
 
