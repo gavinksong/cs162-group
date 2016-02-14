@@ -4,7 +4,7 @@ Design Document for Project 1: Threads
 ## Group Members
 
 * Keonhwa Song <gavinsong93@berkeley.edu>
-* Jun Tan <email@domain.example>
+* Jun Tan <jtan0325@berkeley.edu>
 * Pengcheng Liu <shawnpliu@berkeley.edu>
 * Jacobo Sternberg <j.sternberg@berkeley.edu>
 
