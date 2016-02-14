@@ -27,8 +27,11 @@ static struct lock sleepers_lock;
 ```C
 struct thread {
 	...
+	/* Shared between thread.c, synch.c, and timer.c. */
+    struct list_elem elem;		/* List element. */
+
 	/* Owned by timer.c. */
-	int64_t alarm_time;				/* Detects when a thread should wake up. */
+	int64_t alarm_time;			/* Detects when a thread should wake up. */
 	...
 };
 ```
@@ -53,6 +56,30 @@ At first, we considered implementing `sleepers` as a min-priority queue. However
 # Task 2: Priority Scheduler
 
 ### Data Structures and Functions
+
+###### In thread.h
+
+```C
+struct thread {
+	...
+	/* Owned by thread.c. */
+	int priority;				/* Effective priority. */
+	int base_priority;			/* Base priority. */
+	...
+};
+
+/* These functions will be modified to get/set the current thread's
+ * base priority. This may change its effective priority. */
+void thread_set_priority (int new_priority);
+void thread_get_priority (void);
+
+/* These are the only two functions that perform inserts into the
+ * ready list. They will be modified to use list_insert_ordered()
+ * instead of list_push_back(). */
+void thread_unblock (struct thread *t);
+void thread_yield (void);
+```
+
 ### Algorithms
 ### Synchronization
 ### Rationale
