@@ -14,29 +14,24 @@ Design Document for Project 1: Threads
 
 ###### In timer.c
 
-```
+```C
+/* List of all sleeping threads, sorted by `alarm_time`. */
 static struct list sleepers;
-```
-List of all sleeping threads, sorted by `alarm_time`.
 
-```
+/* Lock on sleepers list used by `timer_sleep()` and `timer_interrupt()`. */
 static struct lock sleepers_lock;
 ```
-Lock on sleepers list used by `timer_sleep()` and `timer_interrupt()`.
 
 ###### In thread.h
 
-```
+```C
 struct thread {
-...
-
-/* Owned by timer.c. */
-int64_t alarm_time;
-
-...
+	...
+	/* Owned by timer.c. */
+	int64_t alarm_time;				/* Detects when a thread should wake up. */
+	...
 };
 ```
-The thread should be woken up when `timer_ticks()` surpasses this value.
 
 ### Algorithms
 
