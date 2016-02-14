@@ -46,7 +46,9 @@ The `timer_interrupt()` handler should disable interrupts and then check whether
 
 We added `sleepers_lock` because if a timer interrupt occurs while a thread is traversing `sleepers`, it may pop several elements off the list and leave the thread with invalid pointers.
 
-Meanwhile, since any thread that adds itself to `sleepers` blocks itself immediately afterward, it cannot exit and be deallocated. Furthermore, it should be removed from the ready list and cannot be blocked for any other reason, which is why we can safely add it to the `sleepers` list and then wake it up later.
+Since any thread that adds itself to `sleepers` blocks itself immediately afterward, it cannot exit and be deallocated. Furthermore, it should be removed from the ready list and cannot be blocked for any other reason, which is why we can safely add it to the `sleepers` list and then wake it up later.
+
+It is possible for a thread to be interrupted after adding itself to `sleepers` but *before* blocking itself. We do not want a timer interrupt to pop an unblocked thread off of `sleepers` before the thread resumes, so we will perform a status check on every thread before removing it from the list.
 
 ### Rationale
 
@@ -69,7 +71,8 @@ struct thread {
 };
 
 /* These functions will be modified to get/set the current thread's
- * base priority. This may change its effective priority. */
+ * base priority. This may change its effective priority, which may
+ * cause it to relinquish the processor. */
 void thread_set_priority (int new_priority);
 void thread_get_priority (void);
 
@@ -81,6 +84,9 @@ void thread_yield (void);
 ```
 
 ### Algorithms
+
+##### 
+
 ### Synchronization
 ### Rationale
 
