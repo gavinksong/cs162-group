@@ -34,6 +34,9 @@ struct thread {
 	int64_t alarm_time;			/* Detects when a thread should wake up. */
 	...
 };
+
+/* This function needs to be modified to initialize the new struct fields */
+static void init_thread (struct thread *t, const char *name, int priority)
 ```
 
 ### Algorithms
@@ -73,6 +76,9 @@ struct thread {
 	...
 };
 
+/* This function needs to be modified to initialize the new struct fields */
+static void init_thread (struct thread *t, const char *name, int priority)
+
 /* These functions will be modified to get/set the current thread's
  * base priority. This may change its effective priority, which may
  * cause it to relinquish the processor. */
@@ -80,7 +86,7 @@ void thread_set_priority (int new_priority);
 void thread_get_priority (void);
 ```
 
-##### In synch.h
+###### In synch.h
 
 ```C
 struct lock {
@@ -89,7 +95,10 @@ struct lock {
 	struct list_elem elem;		/* List element for held locks list */
 }
 
-/* These methods need to be modified. */
+/* This function needs to be modified to initialize the new struct fields */
+void lock_init (struct lock *lock)
+
+/* These functions will be modified. */
 void sema_up (struct semaphore *);
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);
@@ -99,18 +108,18 @@ void lock_release (struct lock *);
 
 ### Algorithms
 
-##### Resetting the base priority
+#### Resetting the base priority
 The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks (keep reading). If this value is lower than the old priority value, the thread defensively calls `thread_yield()`.
 
 We can obviously avoid computing an actual max most of the time, but I won't detail the step-by-steps here.
 
-##### Choosing the next thread to run
+#### Choosing the next thread to run
 We will modify `next_thread_to_run()` to use `list_max()` instead of `list_pop_front()` to find the next thread to run. After being chosen, the thread will be popped off of the ready list with `list_remove()`.
 
-##### Choosing the next thread to unblock
+#### Choosing the next thread to unblock
 Since monitors are implemented with locks, and locks are implemented with semaphores, we only need to implement priority scheduling in `sema_up()`. We will use `list_max()` to grab the waiter with the highest priority and unblock it.
 
-##### Priority donations
+#### Priority donations
 Our implementation of priority donations will be two-fold. First, we will maintain a "priority" value for each lock which represents the highest priority of its waiters. Then, the effective priority of each thread will simply be the highest priority of its held locks (or the thread's base priority if it is higher). We inserted this layer of indirection in order to reduce the amount of uninterrupted computation required for `lock_release()`.
 
 ##### When a thread begins waiting for a lock
