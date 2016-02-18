@@ -36,7 +36,7 @@ struct thread {
 };
 
 /* This function needs to be modified to initialize the new struct fields */
-static void init_thread (struct thread *t, const char *name, int priority)
+static void init_thread (struct thread *t, const char *name, int priority);
 ```
 
 ### Algorithms
@@ -96,7 +96,7 @@ struct lock {
 }
 
 /* This function needs to be modified to initialize the new struct fields */
-void lock_init (struct lock *lock)
+void lock_init (struct lock *lock);
 
 /* These functions will be modified. */
 void sema_up (struct semaphore *);
