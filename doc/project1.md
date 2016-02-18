@@ -22,7 +22,7 @@ static struct list sleepers;
 static struct lock sleepers_lock;
 ```
 
-###### In thread.h
+###### In thread.c
 
 ```C
 struct thread {
@@ -62,7 +62,7 @@ At first, we considered implementing `sleepers` as a min-priority queue. However
 
 ### Data Structures and Functions
 
-###### In thread.h
+###### In thread.c
 
 ```C
 struct thread {
@@ -86,7 +86,7 @@ void thread_set_priority (int new_priority);
 void thread_get_priority (void);
 ```
 
-###### In synch.h
+###### In synch.c
 
 ```C
 struct lock {
@@ -108,11 +108,6 @@ void lock_release (struct lock *);
 
 ### Algorithms
 
-#### Resetting the base priority
-The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks (keep reading). If this value is lower than the old priority value, the thread defensively calls `thread_yield()`.
-
-We can obviously avoid computing an actual max most of the time, but I won't detail the step-by-steps here.
-
 #### Choosing the next thread to run
 We will modify `next_thread_to_run()` to use `list_max()` instead of `list_pop_front()` to find the next thread to run. After being chosen, the thread will be popped off of the ready list with `list_remove()`.
 
@@ -133,9 +128,14 @@ If either of these events increase a lock's priority, then its holder’s priori
 ##### When a lock is released
 A lock's priority can only decrease when it is released. In `lock_release()`, after the lock calls `sema_up()`, we will use `list_max()` to get the highest priority of the waiters and update the lock's priority to that value. The priority of the thread that released the lock must also be reset to the maximum priority of any remaining locks it may be holding (or its base priority). Since a thread's priority may decrease in this way, we will defensively call `thread_yield()`.
 
-Similarly to when we reset the base priority, we may be able to avoid actually computing a max most of the time.
+We can obviously avoid computing an actual max most of the time, but I won't detail the step-by-steps here.
 
 Note that we do not have to do anything when a thread acquires a lock, other than to add the lock to the holder's `held_locks` list. Since a semaphore will unblock the waiter with the highest priority when a lock is released, the next thread to acquire the lock is guaranteed to have a priority greater than or equal to this priority.
+
+#### Resetting the base priority
+The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks. If this value is lower than the old priority value, the thread defensively calls `thread_yield()`.
+
+Similarly to when we release a lock, we can avoid computing a max most of the time.
 
 ### Synchronization
 
