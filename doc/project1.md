@@ -112,7 +112,7 @@ void lock_release (struct lock *);
 We will modify `next_thread_to_run()` to use `list_max()` instead of `list_pop_front()` to find the next thread to run. After being chosen, the thread will be popped off of the ready list with `list_remove()`.
 
 #### Choosing the next thread to unblock
-Since monitors are implemented with locks, and locks are implemented with semaphores, we only need to implement priority scheduling in `sema_up()`. We will use `list_max()` to grab the waiter with the highest priority and unblock it.
+Since monitors are implemented with locks, and locks are implemented with semaphores, we only need to implement priority scheduling inside `sema_up()`. We will use `list_max()` to grab the waiter with the highest priority and unblock it.
 
 #### Priority donations
 Our implementation of priority donations will be two-fold. First, we will maintain a "priority" value for each lock which represents the highest priority of its waiters. Then, the effective priority of each thread will simply be the highest priority of its held locks (or the thread's base priority if it is higher). We inserted this layer of indirection in order to reduce the amount of uninterrupted computation required for `lock_release()`.
