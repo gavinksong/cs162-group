@@ -130,7 +130,9 @@ A lock's priority can only decrease when it is released. In `lock_release()`, af
 
 We can obviously avoid computing an actual max most of the time, but I won't detail the step-by-steps here.
 
-Note that we do not have to do anything when a thread acquires a lock, other than to add the lock to the holder's `held_locks` list. Since a semaphore will unblock the waiter with the highest priority when a lock is released, the next thread to acquire the lock is guaranteed to have a priority greater than or equal to this priority.
+##### When a lock is acquired
+
+Notice that we do not have to do anything when a thread acquires a lock, other than to add the lock to the holder's `held_locks` list. Since a semaphore will unblock the waiter with the highest priority when a lock is released, the next thread to acquire the lock is guaranteed to have a priority greater than or equal to this priority.
 
 #### Resetting the base priority
 The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks. If this value is lower than the old priority value, the thread defensively calls `thread_yield()`.
