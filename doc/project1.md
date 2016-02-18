@@ -100,7 +100,9 @@ void lock_release (struct lock *);
 ### Algorithms
 
 ##### Resetting the base priority
-The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks. If this value is lower than the old priority value, the thread defensively calls `thread_yield()`.
+The base priority of the current thread can be set through `thread_set_priority()`. The thread's new effective priority becomes the max of the updated base priority and the priority of any held locks (keep reading). If this value is lower than the old priority value, the thread defensively calls `thread_yield()`.
+
+We can obviously avoid computing an actual max most of the time, but I won't detail the step-by-steps here.
 
 ##### Choosing the next thread to run
 We will modify `next_thread_to_run()` to use `list_max()` instead of `list_pop_front()` to find the next thread to run. After being chosen, the thread will be popped off of the ready list with `list_remove()`.
@@ -117,7 +119,7 @@ There are only two instances where the priority of a lock will increase:
 - When a thread begins waiting for a lock, and the priority of the lock is less than the priority of the thread.
 - If a thread’s priority has been increased, and it is waiting on a lock whose priority is less than the thread’s updated priority.
 
-If either of these events increase a lock's priority, then its holder’s priority is also increased if it is less than the priority of the lock. This happens to be the only way the second event can occur; a blocked thread's priority cannot change by any other means. Thus, all three of these updates may be implemented within `lock_acquire()`.
+If either of these events increase a lock's priority, then its holder’s priority is also increased if it is less than the priority of the lock. Conveniently, this happens to be the only way the second event can occur; a blocked thread's priority cannot change by any other means. Thus, all three of these updates may be implemented within `lock_acquire()`.
 
 ##### When a lock is released
 A lock's priority can only decrease when it is released. In `lock_release()`, after the lock calls `sema_up()`, we will use `list_max()` to get the highest priority of the waiters and update the lock's priority to that value. The priority of the thread that released the lock must also be reset to the maximum priority of any remaining locks it may be holding (or its base priority). Since a thread's priority may decrease in this way, we will defensively call `thread_yield()`.
@@ -125,6 +127,10 @@ A lock's priority can only decrease when it is released. In `lock_release()`, af
 Note that we do not have to do anything when a thread acquires a lock, other than to add the lock to the holder's `held_locks` list. Since the semaphore will unblock the waiter with the highest priority, the next thread to acquire the lock is guaranteed to have a priority greater than or equal to this priority.
 
 ### Synchronization
+
+The priority scheduling segments of our design (in `next_thread_to_run()` and `sema_up()`) are already safe from interrupts.
+
+On the other hand, pretty much any code that deals with priority donations must be made atomic. We tried compiling a list of all the places where an interrupt might cause our data to become inconsistent, but it became too long and complicated. Furthermore, we obviously cannot use locks to protect the priority values of locks. That is why we decided to simply disable interrupts wherever priority values are being updated, including `thread_set_priority()`.
 
 ### Rationale
 
