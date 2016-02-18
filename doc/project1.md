@@ -130,9 +130,9 @@ Note that we do not have to do anything when a thread acquires a lock, other tha
 
 ### Synchronization
 
-The priority scheduling segments of our design (in `next_thread_to_run()` and `sema_up()`) are already safe from interrupts.
+The priority scheduling segments of our design are already safe from interrupts since they run inside `next_thread_to_run()` and `sema_up()`.
 
-On the other hand, pretty much any code that deals with priority donations must be made atomic. We tried compiling a list of all the places where an interrupt might cause our data to become inconsistent, but it became too long and complicated. Furthermore, we obviously cannot use locks to protect the priority values of locks. That is why we decided to simply disable interrupts wherever priority values are being updated, including `thread_set_priority()`.
+On the other hand, any code that deals with priority donations must be made atomic. We tried compiling a list of all the places where an interrupt might cause our data to become inconsistent, but it became too long and complicated. Furthermore, we obviously cannot use locks to protect the priority values of locks. That is why we decided to simply disable interrupts whenever priority values are being updated, including `thread_set_priority()`.
 
 ### Rationale
 
