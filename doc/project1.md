@@ -124,7 +124,9 @@ If either of these events increase a lock's priority, then its holder’s priori
 ##### When a lock is released
 A lock's priority can only decrease when it is released. In `lock_release()`, after the lock calls `sema_up()`, we will use `list_max()` to get the highest priority of the waiters and update the lock's priority to that value. The priority of the thread that released the lock must also be reset to the maximum priority of any remaining locks it may be holding (or its base priority). Since a thread's priority may decrease in this way, we will defensively call `thread_yield()`.
 
-Note that we do not have to do anything when a thread acquires a lock, other than to add the lock to the holder's `held_locks` list. Since the semaphore will unblock the waiter with the highest priority, the next thread to acquire the lock is guaranteed to have a priority greater than or equal to this priority.
+Similarly to when we reset the base priority, we may be able to avoid actually computing a max most of the time.
+
+Note that we do not have to do anything when a thread acquires a lock, other than to add the lock to the holder's `held_locks` list. Since a semaphore will unblock the waiter with the highest priority when a lock is released, the next thread to acquire the lock is guaranteed to have a priority greater than or equal to this priority.
 
 ### Synchronization
 
@@ -134,8 +136,16 @@ On the other hand, pretty much any code that deals with priority donations must 
 
 ### Rationale
 
-##### Ready List
+##### Ready list
 We considered three implementations: using a priority queue, or using a linked list with either `list_insert_ordered()` or `list_max()`. We chose the last option because, despite being slow, it has two huge advantages. First, the underlying data structure does not need to be sorted (or re-sorted every time effective priority values change). Second, we only need to change the code inside `next_thread_to_run()`, which is already required to have interrupts disabled on entry. This makes max removal simpler and safer to implement than the other two solutions.
+
+##### Waiters list
+We considered similar options for the waiters list in a semaphore. Between using sorted inserts and computing maximums, we again decided on the latter for its simplicity. With sorted inserts, we would have to perform additional re-inserts each time a waiter's priority value changed. This may occur multiple times with each `lock_acquire()` if there are many waiters, whereas if we computed maximums, we would only have to do so twice with each `lock_release()`.
+
+##### Lock priority
+We decided to implement this to avoid performing an extra level of recursion in `lock_release()`. When a thread releases a lock, it may lose the effects of a priority donation. If this occurs, it needs to find the value of the next effective priority donation. In other words, it needs to find the maximum priority of all threads that are waiting for any of the locks being held by the current thread. With lock priorities, it can do this just by maxing over the priorities of the locks, rather than having to also max over the priorities of the waiters of each lock.
+
+In a way, the reason we are keeping track of lock priorities is the same as the reason we are keeping track of the effective priorities of threads instead of dynamically recomputing them.
 
 # Task 3: Multi-level Feedback Queue Scheduler
 
