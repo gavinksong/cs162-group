@@ -77,11 +77,10 @@ struct thread {
 };
 
 /* This function needs to be modified to initialize the new struct fields */
-static void init_thread (struct thread *t, const char *name, int priority)
+static void init_thread (struct thread *t, const char *name, int priority);
 
 /* These functions will be modified to get/set the current thread's
- * base priority. This may change its effective priority, which may
- * cause it to relinquish the processor. */
+ * base priority. */
 void thread_set_priority (int new_priority);
 void thread_get_priority (void);
 ```
