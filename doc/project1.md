@@ -28,10 +28,10 @@ static struct lock sleepers_lock;
 struct thread {
 	...
 	/* Shared between thread.c, synch.c, and timer.c. */
-	struct list_elem elem;		/* List element. */
+	struct list_elem elem;			/* List element. */
 
 	/* Owned by timer.c. */
-	int64_t alarm_time;			/* Detects when a thread should wake up. */
+	int64_t alarm_time;				/* Detects when a thread should wake up. */
 	...
 };
 
@@ -68,8 +68,8 @@ At first, we considered implementing `sleepers` as a min-priority queue. However
 struct thread {
 	...
 	/* Owned by thread.c. */
-	int priority;				/* Effective priority. */
-	int base_priority;			/* Base priority. */
+	fixed_point_t priority;			/* Effective priority. */
+	fixed_point_t base_priority;	/* Base priority. */
 	
 	/* Owned by synch.c. */
 	struct list held_locks;			/* List of locks held by this thread. */
@@ -79,10 +79,13 @@ struct thread {
 /* This function needs to be modified to initialize the new struct fields */
 static void init_thread (struct thread *t, const char *name, int priority);
 
-/* These functions will be modified to get/set the current thread's
+/* This function will be modified to select the thread with the max priority */
+static struct thread *next_thread_to_run (void);
+
+/* These functions will be modified to get or set the current thread's
  * base priority. */
 void thread_set_priority (int new_priority);
-void thread_get_priority (void);
+int thread_get_priority (void);
 ```
 
 ###### In synch.c
@@ -90,12 +93,9 @@ void thread_get_priority (void);
 ```C
 struct lock {
 	...
-	int priority;				/* The max priority of waiters */
-	struct list_elem elem;		/* List element for held locks list */
-}
-
-/* This function needs to be modified to initialize the new struct fields */
-void lock_init (struct lock *lock);
+	fixed_point_t priority;			/* The max priority of waiters. */
+	struct list_elem elem;			/* List element for held locks list. */
+};
 
 /* These functions will be modified. */
 void sema_up (struct semaphore *);
@@ -160,6 +160,53 @@ In a way, the reason we are keeping track of lock priorities is the same as the 
 # Task 3: Multi-level Feedback Queue Scheduler
 
 ### Data Structures and Functions
+
+###### In thread.c
+
+```C
+#define NUM_QUEUES 64
+
+/* MLFQS ready queues. */
+static struct list ready_queues[NUM_QUEUES];
+
+/* Load average. */
+static fixed_point_t load_avg;
+
+struct thread {
+	...
+	/* For MLFQS. */
+	fixed_point_t nice;				/* Niceness value. */
+	fixed_point_t recent_cpu;		/* Recent CPU value. */
+};
+
+/* This function needs to be modified to initialize load_avg and ready_queues. */
+void thread_init (void);
+
+/* This function needs to be modified to initialize the new struct fields. */
+static void init_thread (struct thread *t, const char *name, int priority);
+
+/* This function will be modified for MLFQS. */
+static struct thread *next_thread_to_run (void);
+
+/* We will update all MLFQS values in here. */
+void thread_tick (void);
+```
+
 ### Algorithms
+
+##### At every thread tick
+We will increment the current thread's `recent_cpu` value. If `ticks` is divisible by 4, we will recompute the thread's priority and clamp it between `PRI_MIN` and `PRI_MAX`. If `ticks` is divisible by `TIMER_FREQ`, we will update `load_avg`, recompute the priorities of all threads, and redistribute the threads to the correct queues. We can perform these last two steps in one pass over `all_list`. For each thread, we will recompute its priority, and then send it to the back of the appropriate ready queue.
+
+##### Choosing the next thread to run
+First, the current thread should be pushed to the back of the appropriate ready queue. Then, the ready queues should be checked in order of descending priority. If all the queues are empty, we will return the idle thread. Otherwise, we will pop the thread from the head of the first non-empty queue and return it.
+
 ### Synchronization
+All the code runs inside the timer interrupt, so there shouldn't be any synchronization issues.
+
 ### Rationale
+
+##### Finding the non-empty queue with the highest priority
+WE SHOULD PROBABLY STORE THE INDEX OF THIS QUEUE SO WE DON'T HAVE TO SEARCH EVERY TIME. BUT IM TIRED.
+
+##### Iterating over all list
+When we recompute all priorities and redistribute across the ready queues, we could have chosen to make a pass over each ready queue in descending order of priority. Instead, we chose to iterate over `all_list`. BLAH BLAH BLAH
