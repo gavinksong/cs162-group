@@ -216,12 +216,14 @@ We chose to keep track of `queue_index` rather than try to find the non-empty qu
 ##### Iterating over all list
 When we recompute all priorities and redistribute across the ready queues, we could have chosen to make a pass over each ready queue in descending order of priority. Instead, we chose to iterate over `all_list`. Although the first option has the advantage of preserving the order of threads in the queues, we chose the latter option for its simplicity. Admittedly, this may cause threads positioned closer to the head of `all_list` to receive slightly more preference. However, we are hoping that the mechanics of MLFQS will alleviate this effect.
 
-### Additional Questions
-1. Test setup: There are two threads running, T1 (priority 31), T2 (priority 41). T1 is the owner of lock A. Later, one more thread, called T3, with priority 51 gets to run and acquires the lock A. It will prints "Get lock" after successfully acquiring the lock. T3 donates its priority to T1. T1's effective priority gets updated to 51. 
-  
-   Actual output: Since the implementation of the sema_up() based on base priority, it picks T2 rather than T3 to release the lock, but T2 does not own any locks and lock A will never be released. T3 will be not be unblocked. 
- 
-   Expected output: sema_up() picks T1 to release the lock and T3 gets unblocked. "Get lock" should be printed out to the console.
+# Additional Questions
+1.	**Test setup**: Initialize a lock and a semaphore at value 0. Start a thread T0 (priority 31) to launch two threads, T1 (priority 41) and T2 (priority 51), and then call `thread_yield()`. T2 will immediately down the semaphore. T1 will acquire the lock, launch thread T3 (priority 61), and then down the semaphore. T3 will call `lock_acquire()` on the lock. T0 will then call `sema_up()`, `thread_yield()`, and then `sema_up()` again. T1 and T2 will respectively print "T1" and "T2" before exiting.
+
+	**Explanation**: Since thread T0 calls `thread_yield()` right after launching T1 and T2, it will only resume after T1 and T2 both either block or exit. T2 blocks immediately because it downs the zero semaphore. T1 launches T3 after first acquiring the lock, so T3 must wait for the lock and should donate its priority to T1. Only after T2 and T3 both block, T0 resumes and calls `sema_up()` and then yields. This should cause either T1 or T2 to unblock and print. Then, T0 will call `sema_up()` again to release the remaining thread(s).
+
+	**Expected output**: "T1" should be printed before "T2". Since T1 receives a priority donation from T3, the semaphore should choose T1 over T2 when `sema_up()` is called for the first time.
+
+	**Actual output**: "T2" will be printed before "T1". Since the actual implementation of `sema_up()` is based on base priority, it will pick T2 over T1 when `sema_up()` is first called.
 
 2. 
 timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
@@ -233,8 +235,8 @@ timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
 16          |  3   |  1   |   0  |   60 |   60 |  59  | P(B)
 20          |  3   |  2   |   0  |   60 |   59 |  59  | P(A)
 24          |  4   |  2   |   0  |   59 |   59 |  59  | P(B)
-28          |  4   |  3   |   0  |   59 |   58 |  59  | P(A)
-32          |  5   |  3   |   0  |   58 |   58 |  59  | P(C)
+28          |  4   |  2   |   1  |   59 |   59 |  58  | P(C)
+32          |  4   |  3   |   1  |   59 |   58 |  58  | P(B)
 36          |  5   |  3   |   1  |   58 |   58 |  58  | P(A)
 
-3. When there are multiple threads with same priority at the same time, it is hard to choose which one to run first. Our rule of the running order is based on thread's nice value, the one with the lowest nice value gets to run first. 
+3. 
