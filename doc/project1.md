@@ -215,3 +215,23 @@ We chose to keep track of `queue_index` rather than try to find the non-empty qu
 
 ##### Iterating over all list
 When we recompute all priorities and redistribute across the ready queues, we could have chosen to make a pass over each ready queue in descending order of priority. Instead, we chose to iterate over `all_list`. Although the first option has the advantage of preserving the order of threads in the queues, we chose the latter option for its simplicity. Admittedly, this may cause threads positioned closer to the head of `all_list` to receive slightly more preference. However, we are hoping that the mechanics of MLFQS will alleviate this effect.
+
+### Additional Questions
+1. Test setup: There are two threads running, T1 (priority 31), T2 (priority 41). T1 is the owner of lock A. Later, one more thread, called T3, with priority 51 gets to run and acquires the lock A. It will prints "Get lock" after successfully acquiring the lock. T3 donates its priority to T1. T1's effective priority gets updated to 51. 
+   Actual output: Since the implementation of the sema_up() based on base priority, it picks T2 rather than T3 to release the lock, but T2 does not own any locks and lock A will never be released. T3 will be not be unblocked. 
+   Expected output: sema_up() picks T1 to release the lock and T3 gets unblocked. "Get lokc" should be printed out to the console.
+
+2. time ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
+            0 |  0   |  0   |   0  |   63 |   61 |  59  | P(A)
+            4 |  1   |  0   |   0  |   62 |   61 |  59  | P(A)
+            8 |  2   |  0   |   0  |   61 |   61 |  59  | P(B)
+           12 |  2   |  1   |   0  |   61 |   60 |  59  | P(A)
+           16 |  3   |  1   |   0  |   60 |   60 |  59  | P(B)
+           20 |  3   |  2   |   0  |   60 |   59 |  59  | P(A)
+           24 |  4   |  2   |   0  |   59 |   59 |  59  | P(B)
+           28 |  4   |  3   |   0  |   59 |   58 |  59  | P(A)
+           32 |  5   |  3   |   0  |   58 |   58 |  59  | P(C)
+           36 |  5   |  3   |   1  |   58 |   58 |  58  | P(A)
+
+
+3. When there are multiple threads with same priority at the same time, it is hard to choose which one to run first. Our rule of the running order is based on thread's nice valu, the one with the lowest nice value to run first. 
