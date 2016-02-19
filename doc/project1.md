@@ -166,10 +166,10 @@ In a way, the reason we are keeping track of lock priorities is the same as the 
 ```C
 #define NUM_QUEUES 64
 
-/* MLFQS ready queues. */
+/* MLFQS queues. */
 static struct list ready_queues[NUM_QUEUES];
 
-/* Index of the non-empty MLFQS queue with the highest priority. */
+/* Index of the highest priority non-empty MLFQS queue. */
 static int queue_index;
 
 /* Load average. */
