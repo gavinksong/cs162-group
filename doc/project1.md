@@ -169,6 +169,9 @@ In a way, the reason we are keeping track of lock priorities is the same as the 
 /* MLFQS ready queues. */
 static struct list ready_queues[NUM_QUEUES];
 
+/* Index of the non-empty MLFQS queue with the highest priority. */
+static int queue_index;
+
 /* Load average. */
 static fixed_point_t load_avg;
 
@@ -195,18 +198,20 @@ void thread_tick (void);
 ### Algorithms
 
 ##### At every thread tick
-We will increment the current thread's `recent_cpu` value. If `ticks` is divisible by 4, we will recompute the thread's priority and clamp it between `PRI_MIN` and `PRI_MAX`. If `ticks` is divisible by `TIMER_FREQ`, we will update `load_avg`, recompute the priorities of all threads, and redistribute the threads to the correct queues. We can perform these last two steps in one pass over `all_list`. For each thread, we will recompute its priority, and then send it to the back of the appropriate ready queue.
+We will increment the current thread's `recent_cpu` value. If `ticks` is divisible by 4, we will recompute the thread's priority and clamp it between `PRI_MIN` and `PRI_MAX`. If `ticks` is divisible by `TIMER_FREQ`, we will update `load_avg`, recompute the priorities of all threads, and redistribute the threads to the correct queues. We can perform these last two steps in one pass over `all_list`. For each thread, we will recompute its priority, and then send it to the back of the appropriate ready queue. As we do this, we will also determine the highest new priority value and store it in `queue_index`. If there are no non-idle threads, we will set `queue_index` to -1.
 
 ##### Choosing the next thread to run
-First, the current thread should be pushed to the back of the appropriate ready queue. Then, the ready queues should be checked in order of descending priority. If all the queues are empty, we will return the idle thread. Otherwise, we will pop the thread from the head of the first non-empty queue and return it.
+First, the current thread should be pushed to the back of the appropriate ready queue. If the index of this queue is higher than `queue_index`, we will update `queue_index` to this value. Next, we will check the queue at index `queue_index`. If it is non-empty, we will pop the next thread in this queue and return it. Otherwise, we will decrement `queue_index`, and try again. If `queue_index` reaches -1, we will return the idle thread.
 
 ### Synchronization
 All the code runs inside the timer interrupt, so there shouldn't be any synchronization issues.
 
 ### Rationale
 
-##### Finding the non-empty queue with the highest priority
-WE SHOULD PROBABLY STORE THE INDEX OF THIS QUEUE SO WE DON'T HAVE TO SEARCH EVERY TIME. BUT IM TIRED.
+Our strategy was to try to put most of the computation in the per-second update. We quickly realized that the priority of ready threads only had to be updated once per second, since `nice` and `recent_cpu` values can only change for the running thread. This also meant we only had to move READY threads between queues once per second. And this in turn implied that the index of the highest priority non-empty queue only changed if the priority of the RUNNING thread had changed. We exploited this by confining the code for updating and moving READY threads to the per-second update and keeping track of a `queue_index`.
+
+##### Queue index
+We chose to keep track of `queue_index` rather than try to find the non-empty queue with the highest priority with each call to `next_thread_to_run()`. Between per-second updates, keeping track of this index is easy because the priority of threads only change while they are running on the processor. Since thread-switches happen 25 times per second, the total amount of time saved during thread-switching is definitely worth having to recompute `queue_index` every second.
 
 ##### Iterating over all list
-When we recompute all priorities and redistribute across the ready queues, we could have chosen to make a pass over each ready queue in descending order of priority. Instead, we chose to iterate over `all_list`. BLAH BLAH BLAH
+When we recompute all priorities and redistribute across the ready queues, we could have chosen to make a pass over each ready queue in descending order of priority. Instead, we chose to iterate over `all_list`. Although the first option has the advantage of preserving the order of threads in the queues, we chose the latter option for its simplicity. Admittedly, this may cause threads positioned closer to the head of `all_list` to receive slightly more preference. However, we are hoping that the mechanics of MLFQS will alleviate this effect.
