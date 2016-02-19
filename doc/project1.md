@@ -218,8 +218,10 @@ When we recompute all priorities and redistribute across the ready queues, we co
 
 ### Additional Questions
 1. Test setup: There are two threads running, T1 (priority 31), T2 (priority 41). T1 is the owner of lock A. Later, one more thread, called T3, with priority 51 gets to run and acquires the lock A. It will prints "Get lock" after successfully acquiring the lock. T3 donates its priority to T1. T1's effective priority gets updated to 51. 
+  
    Actual output: Since the implementation of the sema_up() based on base priority, it picks T2 rather than T3 to release the lock, but T2 does not own any locks and lock A will never be released. T3 will be not be unblocked. 
-   Expected output: sema_up() picks T1 to release the lock and T3 gets unblocked. "Get lokc" should be printed out to the console.
+ 
+   Expected output: sema_up() picks T1 to release the lock and T3 gets unblocked. "Get lock" should be printed out to the console.
 
 2. 
 timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
@@ -235,4 +237,4 @@ timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
 32          |  5   |  3   |   0  |   58 |   58 |  59  | P(C)
 36          |  5   |  3   |   1  |   58 |   58 |  58  | P(A)
 
-3. When there are multiple threads with same priority at the same time, it is hard to choose which one to run first. Our rule of the running order is based on thread's nice valu, the one with the lowest nice value to run first. 
+3. When there are multiple threads with same priority at the same time, it is hard to choose which one to run first. Our rule of the running order is based on thread's nice value, the one with the lowest nice value gets to run first. 
