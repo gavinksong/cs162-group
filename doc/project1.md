@@ -239,4 +239,4 @@ timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
 32          |  4   |  3   |   1  |   59 |   58 |  58  | P(A)
 36          |  5   |  3   |   1  |   58 |   58 |  58  | P(C)
 
-3. 
+3. The spec says that we always choose a thread from the queue with the highest priority and that we are to run them in "round-robin" order if there are multiple threads in a queue. However, it is ambiguous as to what order the threads in a queue should initially be in. For example, it is possible to initially sort the queue in order of niceness and use round-robin until we switch to a different queue. To simplify our design, we used FIFO across all queues. Specifically, during a thread switch, we always push the current thread to the *back* of a ready queue, and then pull the next thread from the *front* of a ready queue. In our actual design, we break this rule during the per-second update, but we follow it completely in our response to question 2.
