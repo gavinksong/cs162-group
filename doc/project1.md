@@ -221,17 +221,18 @@ When we recompute all priorities and redistribute across the ready queues, we co
    Actual output: Since the implementation of the sema_up() based on base priority, it picks T2 rather than T3 to release the lock, but T2 does not own any locks and lock A will never be released. T3 will be not be unblocked. 
    Expected output: sema_up() picks T1 to release the lock and T3 gets unblocked. "Get lokc" should be printed out to the console.
 
-2. time ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
-            0 |  0   |  0   |   0  |   63 |   61 |  59  | P(A)
-            4 |  1   |  0   |   0  |   62 |   61 |  59  | P(A)
-            8 |  2   |  0   |   0  |   61 |   61 |  59  | P(B)
-           12 |  2   |  1   |   0  |   61 |   60 |  59  | P(A)
-           16 |  3   |  1   |   0  |   60 |   60 |  59  | P(B)
-           20 |  3   |  2   |   0  |   60 |   59 |  59  | P(A)
-           24 |  4   |  2   |   0  |   59 |   59 |  59  | P(B)
-           28 |  4   |  3   |   0  |   59 |   58 |  59  | P(A)
-           32 |  5   |  3   |   0  |   58 |   58 |  59  | P(C)
-           36 |  5   |  3   |   1  |   58 |   58 |  58  | P(A)
-
+2. 
+timer ticks | R(A) | R(B) | R(C) | P(A) | P(B) | P(C) | thread to run
+------------|------|------|------|------|------|------|--------------
+ 0          |  0   |  0   |   0  |   63 |   61 |  59  | P(A)
+ 4          |  1   |  0   |   0  |   62 |   61 |  59  | P(A)
+ 8          |  2   |  0   |   0  |   61 |   61 |  59  | P(B)
+12          |  2   |  1   |   0  |   61 |   60 |  59  | P(A)
+16          |  3   |  1   |   0  |   60 |   60 |  59  | P(B)
+20          |  3   |  2   |   0  |   60 |   59 |  59  | P(A)
+24          |  4   |  2   |   0  |   59 |   59 |  59  | P(B)
+28          |  4   |  3   |   0  |   59 |   58 |  59  | P(A)
+32          |  5   |  3   |   0  |   58 |   58 |  59  | P(C)
+36          |  5   |  3   |   1  |   58 |   58 |  58  | P(A)
 
 3. When there are multiple threads with same priority at the same time, it is hard to choose which one to run first. Our rule of the running order is based on thread's nice valu, the one with the lowest nice value to run first. 
