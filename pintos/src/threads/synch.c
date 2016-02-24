@@ -179,7 +179,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
-  lock->priority = fix_int(0);
+  lock->priority = fix_int (0);
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
