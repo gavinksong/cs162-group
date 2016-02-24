@@ -95,6 +95,9 @@ struct thread
     /* Shared between thread.c, synch.c, and timer.c. */
     struct list_elem elem;              /* List element. */
 
+    /* Owned by timer.c. */
+    int64_t alarm_time;             /* Detects when a thread should wake up. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -102,9 +105,6 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-
-    /* Owned by timer.c. */
-    int64_t alarm_time;             /* Detects when a thread should wake up. */
   };
 
 /* If false (default), use round-robin scheduler.
