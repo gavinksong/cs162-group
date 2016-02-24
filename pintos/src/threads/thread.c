@@ -336,14 +336,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  thread_current ()->priority =  fix_int(new_priority);
+  thread_current ()->base_priority =  fix_int(new_priority);
 }
 
 /* Returns the current thread's base priority. */
 int
 thread_get_priority (void)
 {
-  return fix_round (thread_current ()->base_priority);
+  return fix_round (thread_current ()->priority);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -494,8 +494,11 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_max (&ready_list, compare_priority, NULL), struct thread, elem);
+  else {
+    struct list_elem * nextToRun = list_max (&ready_list, compare_priority, NULL);
+    list_remove(nextToRun);
+    return list_entry (nextToRun, struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -591,7 +594,5 @@ bool compare_priority (const struct list_elem *a,
 {
   struct thread *s = list_entry(a, struct thread, elem);
   struct thread *t = list_entry(b, struct thread, elem);
-  if (fix_compare(s->priority, t->priority) == 1)
-    return true;
-  return false;
+  return fix_compare(s->priority, t->priority) == 1;
 }
