@@ -185,19 +185,19 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
 
-  /* For every sleeper whose alarm time is past */
-  struct list_elem *e;
-  for (e = list_begin (&sleepers);
-    e != list_end (&sleepers) && list_entry (e, struct thread, elem)->alarm_time <= ticks;
-    e = list_next (e))
+  struct list_elem *e = list_begin (&sleepers);
+  while (e != list_end (&sleepers))
   {
-    /* Wake up sleeper and remove from list if blocked */
     struct thread *t = list_entry (e, struct thread, elem);
-    if (t->status == THREAD_BLOCKED)
-    {
-      thread_unblock (t);
-      list_remove (e);
-    }
+
+    if (t->alarm_time > ticks)
+      break;
+    
+    struct list_elem *tmp = e;
+    e = list_next(e);
+    list_remove(tmp);
+
+    thread_unblock (t);
   }
 
   thread_tick ();
