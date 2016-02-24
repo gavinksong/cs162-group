@@ -92,7 +92,7 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
+    /* Shared between thread.c, synch.c, and timer.c. */
     struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
@@ -102,6 +102,9 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* Owned by timer.c. */
+    int64_t alarm_time;             /* Detects when a thread should wake up. */
   };
 
 /* If false (default), use round-robin scheduler.
