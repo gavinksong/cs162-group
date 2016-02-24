@@ -7,7 +7,9 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-  
+#include "lib/kernel/list.h"
+#include <stdbool.h>
+
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -97,9 +99,17 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
+  /* Set the alarm_time of current thread. */
+  struct thread *current = thread_current();
+  current->alarm_time = start + ticks;
+
+  /* Insert current thread into sleepers */
+  lock_acquire(&sleepers_lock);
+  list_insert_ordered(&sleepers, &thread->elem, compare_alarm, NULL);
+  lock_release(&sleepers_lock);
+
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  thread_block();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -177,6 +187,28 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  /* Check if sleepers_lock is being held */
+  if (lock_try_acquire(&sleepers_lock))
+  {
+    lock_release(&sleepers_lock);
+
+    /* For every sleeper whose alarm time is past */
+    struct list_elem *e;
+    for (e = list_begin(&sleepers);
+      list_entry(e, struct thread, elem)->alarm_time <= ticks;
+      e = list_next(e))
+    {
+      /* Wake up sleeper and remove from list if blocked */
+      struct thread *t = list_entry(e, struct thread, elem);
+      if (t->status == THREAD_BLOCKED)
+      {
+        thread_unblock(t);
+        list_remove(&sleepers);
+      }
+    }
+  }
+
   thread_tick ();
 }
 
@@ -249,4 +281,15 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+
+/* Compares the thread alarm_time values of list elements
+   A and B. Returns true iff A is less than B. */
+bool compare_alarm (const struct list_elem *a,
+                      const struct list_elem *b,
+                      void *aux)
+{
+  struct thread *s = list_entry(a, struct thread, elem);
+  struct thread *t = list_entry(b, struct thread, elem);
+  return (s->alarm_time < t->alarm_time);
 }
