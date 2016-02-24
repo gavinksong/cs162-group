@@ -336,14 +336,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  thread_current ()->base_priority = new_priority;
+  thread_current ()->priority =  fix_int(new_priority);
 }
 
 /* Returns the current thread's base priority. */
 int
 thread_get_priority (void)
 {
-  return thread_current ()->base_priority;
+  return fix_round (thread_current ()->base_priority);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -462,8 +462,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
-  t->base_priority = priority;
+  t->priority = fix_int(priority);
+  t->base_priority =  fix_int(priority);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -591,5 +591,7 @@ bool compare_priority (const struct list_elem *a,
 {
   struct thread *s = list_entry(a, struct thread, elem);
   struct thread *t = list_entry(b, struct thread, elem);
-  return (s->priority < t->priority);
+  if (fix_compare(s->priority, t->priority) == 1)
+    return true;
+  return false;
 }
