@@ -114,10 +114,16 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+    {
+    struct list_elem *e = list_max (&sema->waiters, thread_compare_priority, NULL);
+    list_remove (e);
+    thread_unblock (list_entry (e, struct thread, elem));
+    }
   sema->value++;
   intr_set_level (old_level);
+
+  /* Yield defensively */
+  thread_yield ();
 }
 
 static void sema_test_helper (void *sema_);
@@ -251,8 +257,8 @@ bool lock_compare_priority (const struct list_elem *a,
                             const struct list_elem *b,
                             void *aux)
 {
-  struct lock *s = list_entry(a, struct lock, elem);
-  struct lock *t = list_entry(b, struct lock, elem);
+  struct lock *s = list_entry (a, struct lock, elem);
+  struct lock *t = list_entry (b, struct lock, elem);
   return (fix_compare (s->priority, t->priority) == 1);
 }
 
