@@ -70,7 +70,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static list_less_func compare_priority;
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -201,6 +200,9 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  /* Defensively yield processor */
+  thread_yield ();
 
   return tid;
 }
@@ -336,7 +338,27 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  thread_current ()->base_priority =  fix_int (new_priority);
+  enum intr_level old_level;
+
+  ASSERT (PRI_MIN <= new_priority && new_priority <= PRI_MAX);
+
+  struct thread *t = thread_current ();
+  fixed_point_t p = fix_int (new_priority);
+
+  old_level = intr_disable ();
+  if (fix_compare (p, t->priority) >= 0 || list_empty (&t->held_locks))
+    t->priority = p;
+  else if (fix_compare (t->base_priority, t->priority) >= 0)
+    {
+    fixed_point_t l = list_entry (list_max (&t->held_locks, lock_compare_priority, NULL),
+                                  struct lock, elem)->priority;
+    t->priority = (p.f > l.f) ? p : l;
+    }
+  t->base_priority = p;
+  intr_set_level (old_level);
+
+  /* Defensively yield processor */
+  thread_yield ();
 }
 
 /* Returns the current thread's base priority. */
@@ -464,6 +486,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = fix_int (priority);
   t->base_priority =  fix_int (priority);
+  list_init(&t->held_locks);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -494,11 +517,12 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else {
-    struct list_elem *nextToRun = list_max (&ready_list, compare_priority, NULL);
-    list_remove (nextToRun);
-    return list_entry (nextToRun, struct thread, elem);
-  }
+  else
+    {
+    struct list_elem *e = list_max (&ready_list, thread_compare_priority, NULL);
+    list_remove (e);
+    return list_entry (e, struct thread, elem);
+    }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -588,11 +612,11 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-bool compare_priority (const struct list_elem *a,
-                      const struct list_elem *b,
-                      void *aux)
+bool thread_compare_priority (const struct list_elem *a,
+                              const struct list_elem *b,
+                              void *aux)
 {
   struct thread *s = list_entry(a, struct thread, elem);
   struct thread *t = list_entry(b, struct thread, elem);
-  return (fix_compare (s->priority, t->priority) == 1);
+  return (fix_compare (s->priority, t->priority) == -1);
 }

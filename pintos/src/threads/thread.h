@@ -3,6 +3,7 @@
 
 #include <debug.h>
 #include <list.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
@@ -142,5 +143,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+bool thread_compare_priority (const struct list_elem *a,
+                              const struct list_elem *b,
+                              void *aux);
 
 #endif /* threads/thread.h */
