@@ -36,9 +36,6 @@ static void real_time_delay (int64_t num, int32_t denom);
 /* List of all sleeping threads, sorted by `alarm_time`. */
 static struct list sleepers;
 
-/* Lock on sleepers list used by `timer_sleep()` and `timer_interrupt()`. */
-static struct lock sleepers_lock;
-
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -46,8 +43,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
-  list_init(&sleepers);
-  lock_init(&sleepers_lock);
+  list_init (&sleepers);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -107,12 +103,10 @@ timer_sleep (int64_t ticks)
   t->alarm_time = start + ticks;
 
   /* Insert current thread into sleepers */
-  lock_acquire (&sleepers_lock);
+  enum intr_level old_level = intr_disable ();
   list_insert_ordered (&sleepers, &t->elem, compare_alarm, NULL);
-  lock_release (&sleepers_lock);
-
-  ASSERT (intr_get_level () == INTR_ON);
   thread_block ();
+  intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -191,24 +185,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
 
-  /* Check if sleepers_lock is being held */
-  if (lock_try_acquire (&sleepers_lock))
+  /* For every sleeper whose alarm time is past */
+  struct list_elem *e;
+  for (e = list_begin (&sleepers);
+    e != list_end (&sleepers) && list_entry (e, struct thread, elem)->alarm_time <= ticks;
+    e = list_next (e))
   {
-    lock_release (&sleepers_lock);
-
-    /* For every sleeper whose alarm time is past */
-    struct list_elem *e;
-    for (e = list_begin (&sleepers);
-      list_entry (e, struct thread, elem)->alarm_time <= ticks;
-      e = list_next (e))
+    /* Wake up sleeper and remove from list if blocked */
+    struct thread *t = list_entry (e, struct thread, elem);
+    if (t->status == THREAD_BLOCKED)
     {
-      /* Wake up sleeper and remove from list if blocked */
-      struct thread *t = list_entry (e, struct thread, elem);
-      if (t->status == THREAD_BLOCKED)
-      {
-        thread_unblock (t);
-        list_remove (e);
-      }
+      thread_unblock (t);
+      list_remove (e);
     }
   }
 
