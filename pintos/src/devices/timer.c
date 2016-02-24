@@ -27,6 +27,7 @@ static int64_t ticks;
 static unsigned loops_per_tick;
 
 static intr_handler_func timer_interrupt;
+static list_less_func compare_alarm;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
@@ -102,16 +103,16 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   /* Set the alarm_time of current thread. */
-  struct thread *current = thread_current();
-  current->alarm_time = start + ticks;
+  struct thread *t = thread_current ();
+  t->alarm_time = start + ticks;
 
   /* Insert current thread into sleepers */
-  lock_acquire(&sleepers_lock);
-  list_insert_ordered(&sleepers, &thread->elem, compare_alarm, NULL);
-  lock_release(&sleepers_lock);
+  lock_acquire (&sleepers_lock);
+  list_insert_ordered (&sleepers, &t->elem, compare_alarm, NULL);
+  lock_release (&sleepers_lock);
 
   ASSERT (intr_get_level () == INTR_ON);
-  thread_block();
+  thread_block ();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -191,22 +192,22 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
 
   /* Check if sleepers_lock is being held */
-  if (lock_try_acquire(&sleepers_lock))
+  if (lock_try_acquire (&sleepers_lock))
   {
-    lock_release(&sleepers_lock);
+    lock_release (&sleepers_lock);
 
     /* For every sleeper whose alarm time is past */
     struct list_elem *e;
-    for (e = list_begin(&sleepers);
-      list_entry(e, struct thread, elem)->alarm_time <= ticks;
-      e = list_next(e))
+    for (e = list_begin (&sleepers);
+      list_entry (e, struct thread, elem)->alarm_time <= ticks;
+      e = list_next (e))
     {
       /* Wake up sleeper and remove from list if blocked */
-      struct thread *t = list_entry(e, struct thread, elem);
+      struct thread *t = list_entry (e, struct thread, elem);
       if (t->status == THREAD_BLOCKED)
       {
-        thread_unblock(t);
-        list_remove(&sleepers);
+        thread_unblock (t);
+        list_remove (e);
       }
     }
   }
