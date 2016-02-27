@@ -217,10 +217,15 @@ lock_acquire (struct lock *lock)
     while (fix_compare (t->priority, w->priority) == 1)
       {
       w->priority = t->priority;
+      if (w->holder == NULL)
+        break;
       t = w->holder;
       if (fix_compare (w->priority, t->priority) < 1)
         break;
       t->priority = w->priority;
+      if (t->wait_lock == NULL)
+        break;
+      w = t->wait_lock;
       }
     /* Start waiting */
     sema_down (&lock->semaphore);
@@ -228,6 +233,7 @@ lock_acquire (struct lock *lock)
     /* Acquire lock */
     t = thread_current ();
     lock->holder = t;
+    t->wait_lock = NULL;
     list_push_back (&thread_current ()->held_locks, &lock->elem);
     if (fix_compare (t->priority, lock->priority) < 0)
       t->priority = lock->priority;
