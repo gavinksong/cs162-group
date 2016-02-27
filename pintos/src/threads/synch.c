@@ -234,7 +234,7 @@ lock_acquire (struct lock *lock)
     t = thread_current ();
     lock->holder = t;
     t->wait_lock = NULL;
-    list_push_back (&thread_current ()->held_locks, &lock->elem);
+    list_push_back (&t->held_locks, &lock->elem);
     if (fix_compare (t->priority, lock->priority) < 0)
       t->priority = lock->priority;
   intr_set_level (old_level);
@@ -261,7 +261,7 @@ lock_try_acquire (struct lock *lock)
     {
     struct thread *t = thread_current ();
     lock->holder = t;
-    list_push_back (&thread_current ()->held_locks, &lock->elem);
+    list_push_back (&t->held_locks, &lock->elem);
     if (fix_compare (t->priority, lock->priority) < 0)
       t->priority = lock->priority;
     }
