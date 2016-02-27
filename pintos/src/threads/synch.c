@@ -225,8 +225,12 @@ lock_acquire (struct lock *lock)
     /* Start waiting */
     sema_down (&lock->semaphore);
     }
-  lock->holder = thread_current ();
-  list_push_back (&thread_current ()->held_locks, &lock->elem);
+    /* Acquire lock */
+    t = thread_current ();
+    lock->holder = t;
+    list_push_back (&thread_current ()->held_locks, &lock->elem);
+    if (fix_compare (t->priority, lock->priority) < 0)
+      t->priority = lock->priority;
   intr_set_level (old_level);
 }
 
@@ -249,11 +253,14 @@ lock_try_acquire (struct lock *lock)
   success = sema_try_down (&lock->semaphore);
   if (success)
     {
-    lock->holder = thread_current ();
+    struct thread *t = thread_current ();
+    lock->holder = t;
     list_push_back (&thread_current ()->held_locks, &lock->elem);
+    if (fix_compare (t->priority, lock->priority) < 0)
+      t->priority = lock->priority;
     }
   intr_set_level (old_level);
-  
+
   return success;
 }
 
@@ -274,16 +281,9 @@ lock_release (struct lock *lock)
 
   old_level = intr_disable ();
   lock->holder = NULL;
-  sema_up (&lock->semaphore);
-  /* Update lock priority */
-  if (list_empty (&lock->semaphore.waiters))
-    lock->priority = fix_int (0);
-  else
-    lock->priority = list_entry (list_max (&lock->semaphore.waiters,
-                                           thread_compare_priority, NULL),
-                                 struct thread, elem)->priority;
-  /* Update thread priority */
   list_remove (&lock->elem);
+  sema_up (&lock->semaphore);
+  /* Update thread priority */
   if (fix_compare (lock->priority, t->priority) > -1)
     {
     if (list_empty (&t->held_locks))
@@ -295,6 +295,13 @@ lock_release (struct lock *lock)
       t->priority = (p.f > t->base_priority.f) ? p : t->base_priority;
       }
     }
+  /* Update lock priority */
+  if (list_empty (&lock->semaphore.waiters))
+    lock->priority = fix_int (0);
+  else
+    lock->priority = list_entry (list_max (&lock->semaphore.waiters,
+                                           thread_compare_priority, NULL),
+                                 struct thread, elem)->priority;
   intr_set_level (old_level);
 
   /* Defensively yield processor */
