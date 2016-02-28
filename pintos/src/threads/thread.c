@@ -118,11 +118,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->nice = fix_int (0);
+  initial_thread->recent_cpu = fix_int (0);
   /* Initialize load_avg. */
   load_avg = fix_int (0);
-  /* Initialize ready_queues. */
-
-
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -394,17 +393,15 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED)
+thread_set_nice (int niceness)
 {
-  /* Not yet implemented. */
+  thread_current ()->nice = fix_int(niceness);
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void)
-{
-  /* Not yet implemented. */
-  return 0;
+  return fix_round (thread_current ()->nice);
 }
 
 /* Returns 100 times the system load average. */
@@ -419,8 +416,8 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void)
 {
-  /* Not yet implemented. */
-  return 0;
+
+  return 100 * fix_trunc(thread_current ()->recent_cpu);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -512,6 +509,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->base_priority =  fix_int (priority);
   list_init(&t->held_locks);
   t->magic = THREAD_MAGIC;
+  //t->nice = fix_int (thread_get_nice ());
+  //t->recent_cpu = fix_int (thread_get_recent_cpu()/100);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
