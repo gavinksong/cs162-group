@@ -21,6 +21,7 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
+
 #define NUM_QUEUES 64
 
 /* List of processes in THREAD_READY state, that is, processes
@@ -82,6 +83,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+void thread_queue (struct thread *t);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -105,8 +107,6 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
-  /* Initialize ready_queues. */
-
   if( thread_mlfqs)
    {
    int i = 0;
@@ -124,6 +124,7 @@ thread_init (void)
 
   /* Initialize load_avg. */
   load_avg = fix_int (0);
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -266,7 +267,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  thread_queue (t);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -336,8 +337,7 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread)
-    list_push_back (&ready_list, &cur->elem);
+  thread_queue (cur);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -405,7 +405,7 @@ thread_set_nice (int niceness)
 int
 thread_get_nice (void)
 {
-  return fix_trunc (thread_current ()->nice);
+  return fix_round (thread_current ()->nice);
 }
 
 /* Returns 100 times the system load average. */
@@ -546,13 +546,26 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void)
 {
-  if (list_empty (&ready_list))
-    return idle_thread;
+  if (thread_mlfqs)
+    {
+    while (queue_index >= 0 && list_empty (&ready_queues[queue_index]))
+      queue_index--;
+    if (queue_index >= 0)
+      return list_entry (list_pop_front (&ready_queues[queue_index]),
+                         struct thread, elem);
+    else
+      return idle_thread;
+    }
   else
     {
-    struct list_elem *e = list_max (&ready_list, thread_compare_priority, NULL);
-    list_remove (e);
-    return list_entry (e, struct thread, elem);
+    if (list_empty (&ready_list))
+      return idle_thread;
+    else
+      {
+      struct list_elem *e = list_max (&ready_list, thread_compare_priority, NULL);
+      list_remove (e);
+      return list_entry (e, struct thread, elem);
+      }
     }
 }
 
@@ -650,4 +663,19 @@ bool thread_compare_priority (const struct list_elem *a,
   struct thread *s = list_entry(a, struct thread, elem);
   struct thread *t = list_entry(b, struct thread, elem);
   return (fix_compare (s->priority, t->priority) == -1);
+}
+
+/* Returns given thread to ready queue */
+void thread_queue (struct thread *t)
+{
+  struct list *q = &ready_list;
+  if (thread_mlfqs)
+    {
+    int i = fix_trunc(fix_mul(t->priority, fix_frac(NUM_QUEUES, PRI_MAX)));
+    q = &ready_queues[i];
+    if (i > queue_index)
+      queue_index = i;
+    }
+  if (t != idle_thread)
+    list_push_back (q, &t->elem);
 }
