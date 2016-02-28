@@ -213,30 +213,33 @@ lock_acquire (struct lock *lock)
   old_level = intr_disable ();
   if (!sema_try_down(&lock->semaphore))
     {
-    /* Recursive priority donations */
-    while (fix_compare (t->priority, w->priority) == 1)
+    if (!thread_mlfqs) 
       {
-      w->priority = t->priority;
-      if (w->holder == NULL)
-        break;
-      t = w->holder;
-      if (fix_compare (w->priority, t->priority) < 1)
-        break;
-      t->priority = w->priority;
-      if (t->wait_lock == NULL)
-        break;
-      w = t->wait_lock;
+      /* Recursive priority donations */
+      while (fix_compare (t->priority, w->priority) == 1)
+	{
+	w->priority = t->priority;
+	if (w->holder == NULL)
+	  break;
+	t = w->holder;
+	if (fix_compare (w->priority, t->priority) < 1)
+	  break;
+	t->priority = w->priority;
+	if (t->wait_lock == NULL)
+	  break;
+	w = t->wait_lock;
+	}
       }
     /* Start waiting */
     sema_down (&lock->semaphore);
     }
-    /* Acquire lock */
-    t = thread_current ();
-    lock->holder = t;
-    t->wait_lock = NULL;
-    list_push_back (&t->held_locks, &lock->elem);
-    if (fix_compare (t->priority, lock->priority) < 0)
-      t->priority = lock->priority;
+  /* Acquire lock */
+  t = thread_current ();
+  lock->holder = t;
+  t->wait_lock = NULL;
+  list_push_back (&t->held_locks, &lock->elem);
+  if (fix_compare (t->priority, lock->priority) < 0)
+    t->priority = lock->priority;
   intr_set_level (old_level);
 }
 
@@ -290,24 +293,27 @@ lock_release (struct lock *lock)
   list_remove (&lock->elem);
   sema_up (&lock->semaphore);
   /* Update thread priority */
-  if (fix_compare (lock->priority, t->priority) > -1)
+  if (!thread_mlfqs)
     {
-    if (list_empty (&t->held_locks))
-      t->priority = t->base_priority;
-    else
+    if (fix_compare (lock->priority, t->priority) > -1)
       {
-      fixed_point_t p = list_entry (list_max (&t->held_locks, lock_compare_priority, NULL),
-                                  struct lock, elem)->priority;
-      t->priority = (p.f > t->base_priority.f) ? p : t->base_priority;
+      if (list_empty (&t->held_locks))
+	t->priority = t->base_priority;
+      else
+	{
+	fixed_point_t p = list_entry (list_max (&t->held_locks, lock_compare_priority, NULL),
+				      struct lock, elem)->priority;
+	t->priority = (p.f > t->base_priority.f) ? p : t->base_priority;
+	}
       }
+    /* Update lock priority */
+    if (list_empty (&lock->semaphore.waiters))
+      lock->priority = fix_int (0);
+    else
+      lock->priority = list_entry (list_max (&lock->semaphore.waiters,
+					     thread_compare_priority, NULL),
+				   struct thread, elem)->priority;
     }
-  /* Update lock priority */
-  if (list_empty (&lock->semaphore.waiters))
-    lock->priority = fix_int (0);
-  else
-    lock->priority = list_entry (list_max (&lock->semaphore.waiters,
-                                           thread_compare_priority, NULL),
-                                 struct thread, elem)->priority;
   intr_set_level (old_level);
 
   /* Defensively yield processor */
