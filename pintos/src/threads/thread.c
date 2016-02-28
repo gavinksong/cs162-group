@@ -44,6 +44,7 @@ static struct lock tid_lock;
 
 /* MLFQS queues. */
 static struct list ready_queues[NUM_QUEUES];
+static int ready_threads;
 
 /* Index of the highest priority non-empty MLFQS queue. */
 static int queue_index;
@@ -169,7 +170,7 @@ thread_tick (void)
       }
     if (timer_ticks () % 1000 == 0)
     {
-      // compute_load_avg ();
+      load_avg = fix_add (fix_scale (load_avg, 59/60), fix_frac(ready_threads, 60));
       //recompute_and_redistribute_all_thread_priority;
     }
   }
@@ -569,11 +570,11 @@ next_thread_to_run (void)
     {
     while (queue_index >= 0 && list_empty (&ready_queues[queue_index]))
       queue_index--;
-    if (queue_index >= 0)
-      return list_entry (list_pop_front (&ready_queues[queue_index]),
-                         struct thread, elem);
-    else
+    if (queue_index < 0)
       return idle_thread;
+    ready_threads--;
+    return list_entry (list_pop_front (&ready_queues[queue_index]),
+                       struct thread, elem);
     }
   else
     {
@@ -696,14 +697,10 @@ void thread_queue (struct thread *t)
       q = &ready_queues[i];
       if (i > queue_index)
         queue_index = i;
+      ready_threads++;
       }
     list_push_back (q, &t->elem);
-}
-
-void compute_load_avg (void)
-{
-  int ready_threads = list_size(&ready_list);
-  load_avg = fix_add (fix_scale (load_avg, 59/60), fix_frac(ready_threads, 60));
+  }
 }
 
 void recomput_redistribute_priority (void)
@@ -713,5 +710,4 @@ void recomput_redistribute_priority (void)
     {
     struct thread *curThread = list_entry (e, struct thread, elem);
     }
-
 }
