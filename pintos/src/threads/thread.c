@@ -511,14 +511,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = fix_int (priority);
   t->base_priority =  fix_int (priority);
-  if ( t != initial_thread)
-    {
-    t->nice = fix_int (thread_get_nice ());
-    t->recent_cpu = fix_div(thread_current ()->recent_cpu, fix_int(100));
-    }
-
   list_init(&t->held_locks);
   t->magic = THREAD_MAGIC;
+  t->nice = running_thread ()->nice;
+  t->recent_cpu = fix_div(running_thread ()->recent_cpu, fix_int(100));
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
