@@ -101,6 +101,10 @@ struct thread
     struct list held_locks;             /* List of locks held by this thread. */
     struct lock *wait_lock;             /* The lock that this thread is waiting for */
 
+    /* For MLFQS. */
+    fixed_point_t nice;             /* Niceness value. */
+    fixed_point_t recent_cpu;       /* Recent CPU value. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
