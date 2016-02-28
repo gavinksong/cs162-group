@@ -106,6 +106,7 @@ thread_init (void)
   list_init (&all_list);
 
   /* Initialize ready_queues. */
+
   if( thread_mlfqs)
    {
    int i = 0;
@@ -402,7 +403,6 @@ thread_set_nice (int niceness)
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void)
-{  
   return fix_round (thread_current ()->nice);
 }
 
@@ -418,8 +418,8 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void)
 {
-  /* Not yet implemented. */
-  return 0;
+
+  return 100 * fix_trunc(thread_current ()->recent_cpu);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -511,8 +511,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->base_priority =  fix_int (priority);
   list_init(&t->held_locks);
   t->magic = THREAD_MAGIC;
-  t->nice = fix_int (thread_get_nice ());
-  t->recent_cpu = fix_int (thread_get_recent_cpu());
+  //t->nice = fix_int (thread_get_nice ());
+  //t->recent_cpu = fix_int (thread_get_recent_cpu()/100);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
