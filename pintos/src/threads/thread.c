@@ -84,6 +84,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 void thread_queue (struct thread *t);
+void compute_load_avg (void);
+void recomput_redistribute_priority (void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -674,4 +676,20 @@ void thread_queue (struct thread *t)
     }
   if (t != idle_thread)
     list_push_back (q, &t->elem);
+}
+
+void compute_load_avg (void)
+{
+  int ready_threads = list_size(&ready_list);
+  load_avg = fix_add (fix_scale (load_avg, 59/60), fix_frac(ready_threads, 60));
+}
+
+void recomput_redistribute_priority (void)
+{
+  struct list_elem *e = list_begin (&ready_list);
+  while (e != list_end(&ready_list))
+    {
+    struct thread *curThread = list_entry (e, struct thread, elem);
+    }
+
 }
