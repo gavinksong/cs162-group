@@ -116,11 +116,12 @@ thread_init (void)
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
+  initial_thread->nice = fix_int (0);
+  initial_thread->recent_cpu = fix_int (0);
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  initial_thread->nice = fix_int (0);
-  initial_thread->recent_cpu = fix_int (0);
+
   /* Initialize load_avg. */
   load_avg = fix_int (0);
 }
@@ -412,7 +413,7 @@ int
 thread_get_load_avg (void)
 {
   /* Not yet implemented. */
-  return 0;
+  return 100 * fix_trunc (load_avg);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -510,10 +511,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = fix_int (priority);
   t->base_priority =  fix_int (priority);
+  if ( t != initial_thread)
+    {
+    t->nice = fix_int (thread_get_nice ());
+    t->recent_cpu = fix_div(thread_current ()->recent_cpu, fix_int(100));
+    }
+
   list_init(&t->held_locks);
   t->magic = THREAD_MAGIC;
-  //t->nice = fix_int (thread_get_nice ());
-  //t->recent_cpu = fix_int (thread_get_recent_cpu()/100);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
