@@ -171,7 +171,29 @@ thread_tick (void)
     if (timer_ticks () % 1000 == 0)
     {
       load_avg = fix_add (fix_scale (load_avg, 59/60), fix_frac(ready_threads, 60));
-      //recompute_and_redistribute_all_thread_priority;
+      queue_index = -1;
+      
+      struct list_elem *e;
+      
+      for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
+        {
+        struct thread *t = list_entry (e, struct thread, allelem);
+        if (t->status == THREAD_READY)
+          {
+          // update recent cpu
+          fixed_point_t load_avg2 = fix_scale (load_avg, 2);
+          t->recent_cpu = fix_add (t->nice, fix_mul (t->recent_cpu, fix_div (load_avg2,
+                                                     fix_add (load_avg2, fix_int (1)))));
+          // recompute priority
+          t->priority = fix_sub (fix_int (PRI_MAX),
+                             fix_add (fix_unscale (t->recent_cpu, 4),
+                                      fix_scale (t->nice, 2)));
+          // re-queue
+          list_remove (&t->elem);
+          ready_threads--;
+          thread_queue (t);
+          }
+        }
     }
   }
 
@@ -701,13 +723,4 @@ void thread_queue (struct thread *t)
       }
     list_push_back (q, &t->elem);
   }
-}
-
-void recomput_redistribute_priority (void)
-{
-  struct list_elem *e = list_begin (&ready_list);
-  while (e != list_end(&ready_list))
-    {
-    struct thread *curThread = list_entry (e, struct thread, elem);
-    }
 }
