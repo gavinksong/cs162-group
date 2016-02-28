@@ -665,13 +665,15 @@ bool thread_compare_priority (const struct list_elem *a,
 void thread_queue (struct thread *t)
 {
   struct list *q = &ready_list;
-  if (thread_mlfqs)
-    {
-    int i = fix_trunc(fix_mul(t->priority, fix_frac(NUM_QUEUES, PRI_MAX)));
-    q = &ready_queues[i];
-    if (i > queue_index)
-      queue_index = i;
-    }
   if (t != idle_thread)
+    {
+    if (thread_mlfqs)
+      {
+      int i = fix_trunc(fix_mul(t->priority, fix_frac(NUM_QUEUES, PRI_MAX)));
+      q = &ready_queues[i];
+      if (i > queue_index)
+        queue_index = i;
+      }
     list_push_back (q, &t->elem);
+    }
 }
