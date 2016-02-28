@@ -403,7 +403,7 @@ thread_set_nice (int niceness)
 int
 thread_get_nice (void)
 {  
-  return fix_trunc (thread_current ()->nice);
+  return fix_round (thread_current ()->nice);
 }
 
 /* Returns 100 times the system load average. */
