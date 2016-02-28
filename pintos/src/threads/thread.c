@@ -401,6 +401,7 @@ thread_set_nice (int niceness)
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void)
+{
   return fix_round (thread_current ()->nice);
 }
 
