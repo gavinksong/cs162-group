@@ -4,6 +4,8 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <list.h>
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -39,7 +41,7 @@ static struct thread *initial_thread;
 static struct lock tid_lock;
 
 /* MLFQS queues. */
-static struct list ready_queues[NUM_QUEUES];
+static struct list *ready_queues;
 
 /* Index of the highest priority non-empty MLFQS queue. */
 static int queue_index;
@@ -108,6 +110,13 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  /* Initialize load_avg. */
+  load_avg = fix_int (0);
+  /* Initialize ready_queues. */
+  int i = 0;
+  for (; i < NUM_QUEUES; i+= 1) {
+    list_init (ready_queues+i);
+  }
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
