@@ -13,6 +13,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -152,6 +153,26 @@ void
 thread_tick (void)
 {
   struct thread *t = thread_current ();
+
+  if (thread_mlfqs)
+    {
+    t->recent_cpu = fix_add (t->recent_cpu, fix_int(1));
+    if (timer_ticks () % 4 == 0)
+      {
+      t->priority = fix_sub (fix_int (PRI_MAX),
+                             fix_add (fix_unscale (t->recent_cpu, 4),
+                                      fix_scale (t->nice, 2)));
+      if (fix_compare(t->priority, fix_int (PRI_MIN)) == -1)
+        t->priority = fix_int (PRI_MIN);
+      else if (fix_compare(t->priority, fix_int (PRI_MAX)) == 1)
+        t->priority = fix_int (PRI_MAX);
+      }
+    if (timer_ticks () % 1000 == 0)
+    {
+      // compute_load_avg ();
+      //recompute_and_redistribute_all_thread_priority;
+    }
+  }
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -667,14 +688,15 @@ bool thread_compare_priority (const struct list_elem *a,
 void thread_queue (struct thread *t)
 {
   struct list *q = &ready_list;
-  if (thread_mlfqs)
-    {
-    int i = fix_trunc(fix_mul(t->priority, fix_frac(NUM_QUEUES, PRI_MAX)));
-    q = &ready_queues[i];
-    if (i > queue_index)
-      queue_index = i;
-    }
   if (t != idle_thread)
+    {
+    if (thread_mlfqs)
+      {
+      int i = fix_trunc(fix_mul(t->priority, fix_frac(NUM_QUEUES, PRI_MAX)));
+      q = &ready_queues[i];
+      if (i > queue_index)
+        queue_index = i;
+      }
     list_push_back (q, &t->elem);
 }
 
