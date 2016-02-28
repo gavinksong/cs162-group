@@ -105,6 +105,7 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+  /* Initialize ready_queues. */
   if( thread_mlfqs)
    {
    int i = 0;
@@ -117,11 +118,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->nice = fix_int (0);
+  initial_thread->recent_cpu = fix_int (0);
   /* Initialize load_avg. */
   load_avg = fix_int (0);
-  /* Initialize ready_queues. */
-
-
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -512,6 +512,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->base_priority =  fix_int (priority);
   list_init(&t->held_locks);
   t->magic = THREAD_MAGIC;
+  t->nice = fix_int (thread_get_nice ());
+  t->recent_cpu = fix_int (thread_get_recent_cpu());
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
