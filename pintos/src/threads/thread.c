@@ -41,7 +41,7 @@ static struct thread *initial_thread;
 static struct lock tid_lock;
 
 /* MLFQS queues. */
-static struct list *ready_queues;
+static struct list ready_queues[NUM_QUEUES];
 
 /* Index of the highest priority non-empty MLFQS queue. */
 static int queue_index;
@@ -105,6 +105,13 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+  if( thread_mlfqs)
+   {
+   int i = 0;
+   for (; i < NUM_QUEUES; i++)
+     list_init (&ready_queues[i]);
+   }
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -113,10 +120,8 @@ thread_init (void)
   /* Initialize load_avg. */
   load_avg = fix_int (0);
   /* Initialize ready_queues. */
-  int i = 0;
-  for (; i < NUM_QUEUES; i+= 1) {
-    list_init (ready_queues+i);
-  }
+
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
