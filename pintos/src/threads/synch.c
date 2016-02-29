@@ -333,7 +333,7 @@ lock_held_by_current_thread (const struct lock *lock)
 
 bool lock_compare_priority (const struct list_elem *a,
                             const struct list_elem *b,
-                            void *aux)
+                            void *aux UNUSED)
 {
   struct lock *s = list_entry (a, struct lock, elem);
   struct lock *t = list_entry (b, struct lock, elem);
