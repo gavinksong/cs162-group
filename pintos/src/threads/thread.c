@@ -180,10 +180,10 @@ thread_tick (void)
       for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
         {
         struct thread *t = list_entry (e, struct thread, allelem);
-        if (t->status == THREAD_READY)
+        if (t != idle_thread)
           {
           t->recent_cpu = fix_add (t->nice, fix_mul (t->recent_cpu, fix_div (load_avg2,
-                                                     fix_add (load_avg2, fix_int (1)))));
+                                                                    fix_add (load_avg2, fix_int (1)))));
           t->priority = fix_sub (fix_int (PRI_MAX),
                              fix_add (fix_unscale (t->recent_cpu, 4),
                                       fix_scale (t->nice, 2)));
@@ -192,8 +192,12 @@ thread_tick (void)
             t->priority = fix_int (PRI_MIN);
           else if (fix_compare(t->priority, fix_int (PRI_MAX)) == 1)
             t->priority = fix_int (PRI_MAX);
-          list_remove (&t->elem);
-          thread_queue (t);
+          /* Reinsert to a ready queue if READY */
+          if (t->status == THREAD_READY)
+            {
+            list_remove (&t->elem);
+            thread_queue (t);
+            }
           }
         }
       }
