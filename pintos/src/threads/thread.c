@@ -119,7 +119,7 @@ thread_init (void)
     for (; i < NUM_QUEUES; i++)
       list_init (&ready_queues[i]);
     load_avg = fix_int (0);
-    ready_threads = 0;
+    ready_threads = 1;
     }
 
   /* Set up a thread structure for the running thread. */
@@ -295,7 +295,8 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
-  ready_threads--;
+  if (running_thread () != idle_thread)
+    ready_threads--;
   schedule ();
 }
 
@@ -318,7 +319,8 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   thread_queue (t);
   t->status = THREAD_READY;
-  ready_threads++;
+  if (running_thread () != idle_thread)
+    ready_threads++;
   intr_set_level (old_level);
 }
 
@@ -372,7 +374,8 @@ thread_exit (void)
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
-  ready_threads--;
+  if (running_thread () != idle_thread)
+    ready_threads--;
   schedule ();
   NOT_REACHED ();
 }
