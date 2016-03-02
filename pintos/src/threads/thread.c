@@ -119,7 +119,7 @@ thread_init (void)
     for (; i < NUM_QUEUES; i++)
       list_init (&ready_queues[i]);
     load_avg = fix_int (0);
-    ready_threads = 1;
+    ready_threads = 0;
     }
 
   /* Set up a thread structure for the running thread. */
