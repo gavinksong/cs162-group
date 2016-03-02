@@ -7,7 +7,9 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
-  
+#include "lib/kernel/list.h"
+#include <stdbool.h>
+
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -25,10 +27,14 @@ static int64_t ticks;
 static unsigned loops_per_tick;
 
 static intr_handler_func timer_interrupt;
+static list_less_func compare_alarm;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+
+/* List of all sleeping threads, sorted by `alarm_time`. */
+static struct list sleepers;
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -37,6 +43,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init (&sleepers);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -91,9 +98,15 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
-  ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  /* Set the alarm_time of current thread. */
+  struct thread *t = thread_current ();
+  t->alarm_time = start + ticks;
+
+  /* Insert current thread into sleepers */
+  enum intr_level old_level = intr_disable ();
+  list_insert_ordered (&sleepers, &t->elem, compare_alarm, NULL);
+  thread_block ();
+  intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,6 +184,22 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  struct list_elem *e = list_begin (&sleepers);
+  while (e != list_end (&sleepers))
+  {
+    struct thread *t = list_entry (e, struct thread, elem);
+
+    if (t->alarm_time > ticks)
+      break;
+    
+    struct list_elem *tmp = e;
+    e = list_next(e);
+    list_remove(tmp);
+
+    thread_unblock (t);
+  }
+
   thread_tick ();
 }
 
@@ -243,4 +272,15 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+
+/* Compares the thread alarm_time values of list elements
+   A and B. Returns true iff A is less than B. */
+bool compare_alarm (const struct list_elem *a,
+                      const struct list_elem *b,
+                      void *aux)
+{
+  struct thread *s = list_entry(a, struct thread, elem);
+  struct thread *t = list_entry(b, struct thread, elem);
+  return (s->alarm_time < t->alarm_time);
 }

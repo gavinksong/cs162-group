@@ -94,7 +94,7 @@ struct thread
     fixed_point_t base_priority;        /* Base priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
+    /* Shared between thread.c, synch.c, and timer.c. */
     struct list_elem elem;              /* List element. */
 
     /* Owned by synch.c. */
@@ -104,6 +104,9 @@ struct thread
     /* For MLFQS. */
     fixed_point_t nice;             /* Niceness value. */
     fixed_point_t recent_cpu;       /* Recent CPU value. */
+
+    /* Owned by timer.c. */
+    int64_t alarm_time;             /* Detects when a thread should wake up. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

@@ -567,7 +567,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->nice = running_thread ()->nice;
   t->recent_cpu = fix_div(running_thread ()->recent_cpu, fix_int(100));
   t->magic = THREAD_MAGIC;
-
+  t->alarm_time = 0;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
