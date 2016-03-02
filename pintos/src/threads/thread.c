@@ -319,8 +319,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   thread_queue (t);
   t->status = THREAD_READY;
-  if (running_thread () != idle_thread)
-    ready_threads++;
+  ready_threads++;
   intr_set_level (old_level);
 }
 
