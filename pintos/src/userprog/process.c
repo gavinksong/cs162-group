@@ -53,19 +53,49 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  char *token = strtok(file_name_, ' ');
+  size_t fn_len = strlen(file_name_);
   struct intr_frame if_;
   bool success;
+  char *argv[20];
+  size_t argc;
+
+  const int offset = PHYS_BASE - fn_len - file_name_;
+  do
+    {
+    argv[argc++] = token + offset;
+    token = strtok(NULL, ' ');
+    } while (token != NULL);  
+
+  argv[argc] = NULL;
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (argv[0], &if_.eip, &if_.esp);
+
+  if (success)
+    {
+    if_.esp -= fn_len;
+    memcpy(if_.esp, file_name, fn_len);
+    if_.esp -= if_.esp % 4 + 4;
+
+    int i = argc;
+    while (i >= 0)
+      {
+      *if_.esp = argv[i--];
+      if_.esp -= 4;
+      }
+    *if_.esp = if_.esp + 4;
+    if_.esp -= 4;
+    *if_.esp = argc;
+    if_.esp -= 4;
+    }
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
+  palloc_free_page (file_name_);
   if (!success) 
     thread_exit ();
 
