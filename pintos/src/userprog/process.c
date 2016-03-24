@@ -44,7 +44,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
   return tid;
 }
 
@@ -54,7 +54,7 @@ static void
 start_process (void *file_name_)
 {
   char *save_ptr;
-  char *token = strtok_r(file_name_, ' ', &save_ptr);
+  char *token = strtok_r(file_name_, " ", &save_ptr);
   size_t fn_len = strlen(file_name_);
   struct intr_frame if_;
   bool success;
@@ -65,7 +65,7 @@ start_process (void *file_name_)
   do
     {
     argv[argc++] = token + offset;
-    token = strtok_r(NULL, ' ', &save_ptr);
+    token = strtok_r(NULL, " ", &save_ptr);
     } while (token != NULL);  
 
   argv[argc] = NULL;
@@ -75,7 +75,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (argv[0], &if_.eip, &if_.esp);
+  success = load (file_name_, &if_.eip, &if_.esp);
 
   if (success)
     {
