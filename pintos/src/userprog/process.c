@@ -41,6 +41,9 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  char *save_ptr;
+  file_name = strtok_r((char *) file_name, " ", &save_ptr);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -54,19 +57,20 @@ static void
 start_process (void *file_name_)
 {
   char *save_ptr;
-  char *token = strtok_r(file_name_, ' ', &save_ptr);
+
+  char *token = strtok_r(file_name_, " ", &save_ptr);
   size_t fn_len = strlen(file_name_);
   struct intr_frame if_;
   bool success;
 
-  char *argv[20];
+  char *argv[20]; 
   size_t argc = 0;
 
   const int offset = PHYS_BASE - fn_len - file_name_;
   do
     {
     argv[argc++] = token + offset;
-    token = strtok_r(NULL, ' ', &save_ptr);
+    token = strtok_r(NULL, " ", &save_ptr);
     } while (token != NULL);  
 
   argv[argc] = NULL;
@@ -76,8 +80,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (argv[0], &if_.eip, &if_.esp);
-
+  success = load (file_name_, &if_.eip, &if_.esp);
   if (success)
     {
     if_.esp -= fn_len;
