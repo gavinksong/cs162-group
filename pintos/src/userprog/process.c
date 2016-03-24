@@ -53,18 +53,19 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *token = strtok(file_name_, ' ');
+  char *save_ptr;
+  char *token = strtok_r(file_name_, ' ', &save_ptr);
   size_t fn_len = strlen(file_name_);
   struct intr_frame if_;
   bool success;
   char *argv[20];
-  size_t argc;
+  size_t argc = 0;
 
   const int offset = PHYS_BASE - fn_len - file_name_;
   do
     {
     argv[argc++] = token + offset;
-    token = strtok(NULL, ' ');
+    token = strtok_r(NULL, ' ', &save_ptr);
     } while (token != NULL);  
 
   argv[argc] = NULL;
@@ -79,18 +80,16 @@ start_process (void *file_name_)
   if (success)
     {
     if_.esp -= fn_len;
-    memcpy(if_.esp, file_name, fn_len);
-    if_.esp -= if_.esp % 4 + 4;
+    memcpy(if_.esp, file_name_, fn_len);
 
-    int i = argc;
-    while (i >= 0)
-      {
-      *if_.esp = argv[i--];
-      if_.esp -= 4;
-      }
-    *if_.esp = if_.esp + 4;
+    size_t argv_len = (argc + 1) * sizeof(char *);
+    if_.esp -= ((int) if_.esp) % 4 + argv_len;
+    memcpy(if_.esp, argv, argv_len);
+
     if_.esp -= 4;
-    *if_.esp = argc;
+    *((char ***) if_.esp) = if_.esp + 4;
+    if_.esp -= 4;
+    *((int *) if_.esp) = argc;
     if_.esp -= 4;
     }
 
