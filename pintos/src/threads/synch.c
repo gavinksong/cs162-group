@@ -110,6 +110,7 @@ void
 sema_up (struct semaphore *sema)
 {
   enum intr_level old_level;
+  struct thread *t = NULL;
 
   ASSERT (sema != NULL);
 
@@ -118,13 +119,11 @@ sema_up (struct semaphore *sema)
     {
     struct list_elem *e = list_max (&sema->waiters, thread_compare_priority, NULL);
     list_remove (e);
-    thread_unblock (list_entry (e, struct thread, elem));
+    t = list_entry (e, struct thread, elem);
+    thread_unblock (t);
     }
   sema->value++;
   intr_set_level (old_level);
-
-  /* Pre-empt defensively */
-  thread_yield ();
 }
 
 static void sema_test_helper (void *sema_);
@@ -287,6 +286,7 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   struct thread *t = thread_current ();
+  fixed_point_t initial_priority = t->priority;
 
   old_level = intr_disable ();
   lock->holder = NULL;
@@ -298,26 +298,26 @@ lock_release (struct lock *lock)
     if (fix_compare (lock->priority, t->priority) > -1)
       {
       if (list_empty (&t->held_locks))
-	t->priority = t->base_priority;
+        t->priority = t->base_priority;
       else
-	{
-	fixed_point_t p = list_entry (list_max (&t->held_locks, lock_compare_priority, NULL),
-				      struct lock, elem)->priority;
-	t->priority = (p.f > t->base_priority.f) ? p : t->base_priority;
-	}
+      	{
+      	fixed_point_t p = list_entry (list_max (&t->held_locks, lock_compare_priority, NULL),
+      				                        struct lock, elem)->priority;
+      	t->priority = (p.f > t->base_priority.f) ? p : t->base_priority;
+      	}
       }
     /* Update lock priority */
     if (list_empty (&lock->semaphore.waiters))
       lock->priority = fix_int (0);
     else
       lock->priority = list_entry (list_max (&lock->semaphore.waiters,
-					     thread_compare_priority, NULL),
-				   struct thread, elem)->priority;
+			                                       thread_compare_priority, NULL),
+				                           struct thread, elem)->priority;
     }
   intr_set_level (old_level);
 
-  /* Defensively yield processor */
-  thread_yield ();
+  if (fix_compare(initial_priority, thread_current ()->priority) > 0)
+    thread_yield ();
 }
 
 /* Returns true if the current thread holds LOCK, false
