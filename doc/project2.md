@@ -47,7 +47,8 @@ struct pnode {
   pid_t pid;
   bool loaded;
   struct list_elem elem;
-  int exit_status; //default is -1?
+  struct semaphore sema;
+  int exit_status; //default is -1
 }
 ```
 
@@ -58,9 +59,7 @@ struct thread {
   ...
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
-    struct pnode* 
-    struct lock *load_lock;
-    struct lock *run_lock;
+    struct pnode* pnode;
     struct list children;
     ...
 #endif
@@ -69,8 +68,38 @@ struct thread {
 ```
 
 ### Algorithms
+
+All syscalls will be implemented in `syscall_handler ()`.
+
+##### Practice
+
+Take `args[1]`, increment it, and store it in the `eax` register of the interrupt frame.
+
+##### Halt
+
+Call `shutdown_power_off ()`.
+
+##### Exec
+
+Call `process_execute ()` on the input string, and obtain the tid of the launching process.
+
+In `init_thread ()`, we will allocate a `pnode` struct for the new thread, add it to `children` of the current thread, and initialize `pnode->sema` to zero. When the thread finishes loading the program in `start_process ()`, it will increment `pnode->sema`.
+
+Meanwhile, back in the `exec` system call, we will call `sema_down ()` on the pnode associated with the child whose `pid` equals the returned `tid`. Then, if the pnode has `loaded`, we will return the `pid` of the child. Otherwise, we will return -1.
+
+##### Wait
+
+Look for a pnode in the current thread's `children` list whose `pid` equals the given `pid`. If one does not exist, return -1. Otherwise, call `sema_down ()` on that pnode's semaphore. Then, return its `exit_status`, remove its `list_elem` from `children`, and free the pnode.
+
+A thread will call `sema_up ()` on its pnode semaphore at the end of `process_exit ()`. The default value of `exit_status` will be -1, but if the `exit` syscall was used, this value will be overwritten with the provided value.
+
 ### Synchronization
+
 ### Rationale
+
+Initially, we wanted to use a pair of locks instead of a semaphore to take advantage of priority donations, but we found it was too difficult to coordinate. The child process would need to acquire them before the parent, but there is no guarantee that the child will run before the parent returns from `thread_create`.
+
+We decided to create a new struct to hold information about child processes that need to persist even after the child is terminated. Since it's possible for a child to load and terminate before the parent process returns from `thread_create ()`, this includes the semaphore used to signal the parent that the child has finished loading, as well as the boolean indicating success. We also found that pnodes were a better way for parent and child processes to keep track of each other, since a parent can easily maintain a linked list of pnodes, and it also made more sense for a child to possess a pointer to its pnode than directly to its parent (which was our original idea).
 
 # Task 3: File Operation Syscalls
 
