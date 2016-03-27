@@ -38,6 +38,36 @@ It may be an unusual approach to copy over the entire command string to the stac
 # Task 2: Process Control Syscalls
 
 ### Data Structures and Functions
+
+###### In process.h
+
+```C
+/* TODO: Add comments */
+struct pnode {
+  pid_t pid;
+  bool loaded;
+  struct list_elem elem;
+  int exit_status; //default is -1?
+}
+```
+
+###### In thread.h
+
+```C
+struct thread {
+  ...
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    struct pnode* 
+    struct lock *load_lock;
+    struct lock *run_lock;
+    struct list children;
+    ...
+#endif
+  ...
+}
+```
+
 ### Algorithms
 ### Synchronization
 ### Rationale
