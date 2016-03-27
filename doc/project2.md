@@ -110,37 +110,37 @@ We decided to create a new struct to hold information about child processes that
 ```C
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock; 
-'''
+```
 
 ###### In syscall.h
 
-'''C
+```C
 struct files{
 	int fd;
 	struct file *file_instance;
 	const char *file_name;
 }
-'''
+```
 
 ###### In thread.h
 
-'''C
+```C
 /* Keep track of the files in belongs to the current process. */
 struct list file_list; 
 /* Keep track of the current max fd in the current process. Starts from 2. */
 int cur_fd; 
-'''
+```
 
 ###### In syscall.c
 
-'''C
+```C
 /* Look for the file instane with the corresponding fd. */
 struct files* get_file_instance_from_fd(int fd); 
 /* Look for the file instane with the corresponding fileName. */
 struct files* get_file_instance_from_name(int file_name_); 
 /* Get the cur_Fd and increment by one because we only call this function when we open a file and need to assign a fd to the newly opened file and thus the increment it by one. */
 int get_cur_fd(); 
-'''
+```
 
 ### Algorithms
 
