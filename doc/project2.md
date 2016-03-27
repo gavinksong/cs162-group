@@ -146,23 +146,23 @@ int get_cur_fd();
 
 Initialize the file_lock inside syscall_init.
 
-Create: Acquire the file_lock to ensure that no process can intrupt the creation. Then use filesys_create to create the file. Release the file_lock after creation.
+**Create**: Acquire the file_lock to ensure that no process can intrupt the creation. Then use filesys_create to create the file. Release the file_lock after creation.
 
-Remove: Get the FILES object and remove it from the current process's file_list. Then use filesys_remove to remove the file_instance of the FILES object.
+**Remove**: Get the FILES object and remove it from the current process's file_list. Then use filesys_remove to remove the file_instance of the FILES object.
 
-Open: Use filesys_open to open the file and its return value is the file_instance. Get the next fd which is get_cur_fd() + 1. Create a FILES instance and put it into the current process's file_list.
+**Open**: Use filesys_open to open the file and its return value is the file_instance. Get the next fd which is get_cur_fd() + 1. Create a FILES instance and put it into the current process's file_list.
 
-Filesize: Get the FILES oject and call file_length on its file_instance.
+**Filesize**: Get the FILES oject and call file_length on its file_instance.
 
-Read: Get the FILES object and call file_read on its file_instance.
+**Read**: Get the FILES object and call file_read on its file_instance.
 
-Write: Check the fd. If fd is 1, call lib/kernel/console.c putbuf(buffer, size). Otherwise, get the FILES object with the corresponding fd and call file_write on its file_instance.
+**Write**: Check the fd. If fd is 1, call lib/kernel/console.c putbuf(buffer, size). Otherwise, get the FILES object with the corresponding fd and call file_write on its file_instance.
 
-Seek: Get the FILES object with the corresponding fd and call file_seek on its file_instance.
+**Seek**: Get the FILES object with the corresponding fd and call file_seek on its file_instance.
 
-Tell: Get the FILES object with the corresponding fd and call file_tell on its file_instance.
+**Tell**: Get the FILES object with the corresponding fd and call file_tell on its file_instance.
 
-Close: Get the FILES object with the corresponding fd and call file_close on its file_instance.
+**Close**: Get the FILES object with the corresponding fd and call file_close on its file_instance.
 
 ### Synchronization
 
