@@ -171,3 +171,12 @@ In order to prevent intruption during any of the file syscalls, all of the above
 ### Rationale
 
 There is another approach to store the files in an array, but the array has a fix size and we cannot modify the array size or remove the element after we initialize it, meanwhile we do not know the maximum amount of files a process can hold, we choose to use a linked-list structure instead. Obviousely, we access time of array is faster than the linked-list's, since it cannot be modify and the linked-list structure is provided already, we choose to maintain the files in the linked-list.
+
+Additional questions:
+1. Sc-bad-sp.c: Invokes a system call with the stack pointer (%esp) set to a bad address.  The process must be terminated with -1 exit
+   code.
+2. Sc-bad-arg.c: Sticks a system call number (SYS_EXIT) at the very top of the stack, then invokes a system call with the stack     pointer (%esp) set to its address.  The process must be terminated  with -1 exit code because the argument to the system call
+would be above the top of the user address space.
+3. If a process is holding a lock and die because of the syscall all locks held by the process should be released.
+Create 2 processes A and B. A acquires lock 1, and then B tries to acquire lock 1, and is made to wait. Process A tries to perform a syscall with a null stack pointer, process A dies. If locks are properly released after a process dies, then process B will be able to finish. Otherwise, the program will be stuck in an infinite loop.
+
