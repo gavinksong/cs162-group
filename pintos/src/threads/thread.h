@@ -111,7 +111,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct pnode* pnode;                /* Process identifier. */
+    struct pnode *pnode;                /* Process identifier. */
     struct list children;               /* List of children processes. */
 #endif
 
