@@ -70,8 +70,8 @@ start_process (void *file_name_)
 
   while (token != NULL)
     {
-    argv[argc++] = token + offset;
-    token = strtok_r (NULL, " ", &save_ptr);
+      argv[argc++] = token + offset;
+      token = strtok_r (NULL, " ", &save_ptr);
     }
 
   argv[argc] = NULL;
@@ -85,16 +85,16 @@ start_process (void *file_name_)
 
   if (success)
     {
-    if_.esp -= fn_len;
-    memcpy(if_.esp, file_name_, fn_len);
+      if_.esp -= fn_len;
+      memcpy(if_.esp, file_name_, fn_len);
 
-    size_t argv_sz = (argc + 1) * sizeof (char *);
-    if_.esp -= ((int) if_.esp) % 4 + argv_sz;
-    memcpy (if_.esp, argv, argv_sz);
+      size_t argv_sz = (argc + 1) * sizeof (char *);
+      if_.esp -= ((int) if_.esp) % 4 + argv_sz;
+      memcpy (if_.esp, argv, argv_sz);
 
-    *((char ***) if_.esp - 4) = if_.esp;
-    *((int *) if_.esp - 8) = argc;
-    if_.esp -= 12;
+      *((char ***) if_.esp - 4) = if_.esp;
+      *((int *) if_.esp - 8) = argc;
+      if_.esp -= 12;
     }
 
   /* If load failed, quit. */
@@ -151,7 +151,17 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  /* Free all child pnodes. */
+  while (!list_empty (cur->children))
+    {
+      struct list_elem *e = list_pop_front (cur->children);
+      list_remove (e);
+      palloc_free_page (list_entry (e, struct pnode, elem));
+    }
+
   sema_up (&temporary);
+  sema_up (&cur->pnode->sema);
 }
 
 /* Sets up the CPU for running user code in the current

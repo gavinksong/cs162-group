@@ -262,6 +262,17 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  /* Create pnode. */
+#ifdef USERPROG
+  struct pnode p = palloc_get_page(PAL_ZERO);
+  p.pid = tid;
+  p.loaded = false;
+  sema_init(&p.sema, 0);
+  p.exit_status = -1;
+  list_push_back(&running_thread ()->children, &p.elem);
+  t->pnode = &p;
+#endif
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -572,8 +583,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wait_lock = NULL;
   t->nice = running_thread ()->nice;
   t->recent_cpu = fix_div(running_thread ()->recent_cpu, fix_int(100));
-  t->magic = THREAD_MAGIC;
   t->alarm_time = 0;
+#ifdef USERPROG
+  list_init(&t->children);
+#endif
+  t->magic = THREAD_MAGIC;
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

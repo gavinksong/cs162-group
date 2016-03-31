@@ -102,15 +102,17 @@ struct thread
     struct lock *wait_lock;             /* The lock that this thread is waiting for */
 
     /* For MLFQS. */
-    fixed_point_t nice;             /* Niceness value. */
-    fixed_point_t recent_cpu;       /* Recent CPU value. */
+    fixed_point_t nice;                 /* Niceness value. */
+    fixed_point_t recent_cpu;           /* Recent CPU value. */
 
     /* Owned by timer.c. */
-    int64_t alarm_time;             /* Detects when a thread should wake up. */
+    int64_t alarm_time;                 /* Detects when a thread should wake up. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct pnode* pnode;                /* Process identifier. */
+    struct list children;               /* List of children processes. */
 #endif
 
     /* Owned by thread.c. */
