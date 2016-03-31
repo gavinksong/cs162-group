@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -28,5 +29,14 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
   else if (args[0] = SYS_HALT) {
   	shutdown_power_off();
+  }
+  else if (args[0] = SYS_CREATE) {
+    f->eax = filesys_create(args[1], args[2]);
+  }
+  else if (args[0] = SYS_REMOVE) {
+    f->eax = filesys_remove(args[1]);
+  }
+  else if (args[0] = OPEN) {
+    f->eax = filesys_open(args[1]);
   }
 }

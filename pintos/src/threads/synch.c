@@ -316,7 +316,7 @@ lock_release (struct lock *lock)
     }
   intr_set_level (old_level);
 
-  if (fix_compare(initial_priority, thread_current ()->priority) > 0)
+  if (old_level == INTR_ON && fix_compare(initial_priority, thread_current ()->priority) > 0)
     thread_yield ();
 }
 
