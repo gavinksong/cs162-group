@@ -63,14 +63,16 @@ start_process (void *file_name_)
 
   char *argv[20]; 
   size_t argc = 0;
-
   char *save_ptr;
+
   char *token = strtok_r (file_name, " ", &save_ptr);
-  const int offset = PHYS_BASE - fn_len - file_name_;
-  do {
+  int offset = PHYS_BASE - fn_len - file_name_;
+
+  while (token != NULL)
+    {
     argv[argc++] = token + offset;
     token = strtok_r (NULL, " ", &save_ptr);
-    } while (token != NULL);
+    }
 
   argv[argc] = NULL;
 
@@ -86,15 +88,13 @@ start_process (void *file_name_)
     if_.esp -= fn_len;
     memcpy(if_.esp, file_name_, fn_len);
 
-    size_t argv_len = (argc + 1) * sizeof (char *);
-    if_.esp -= ((int) if_.esp) % 4 + argv_len;
-    memcpy (if_.esp, argv, argv_len);
+    size_t argv_sz = (argc + 1) * sizeof (char *);
+    if_.esp -= ((int) if_.esp) % 4 + argv_sz;
+    memcpy (if_.esp, argv, argv_sz);
 
-    if_.esp -= 4;
-    *((char ***) if_.esp) = if_.esp + 4;
-    if_.esp -= 4;
-    *((int *) if_.esp) = argc;
-    if_.esp -= 4;
+    *((char ***) if_.esp - 4) = if_.esp;
+    *((int *) if_.esp - 8) = argc;
+    if_.esp -= 12;
     }
 
   /* If load failed, quit. */
