@@ -58,20 +58,16 @@ syscall_handler (struct intr_frame *f UNUSED)
 	lock_release(&file_lock);
   }
   else if(args[0] == SYS_FILESIZE) {
-  	f->eax = get_filesize(args[1]);
-  }
-}
-
-int get_filesize(int fd) {
-	lock_acquire(&file_lock);
-	struct files *f = get_file_instance_from_fd(fd); 
-	if (!f) {
-		return -1;
-	} 
-	struct file *file_instance_ = f->file_instance;
-	int size = file_length(file_instance_);
+  	lock_acquire(&file_lock);
+	struct files *files_object = get_file_instance_from_fd(fd); 
+	if (!files_object) {
+		f->eax = -1;
+	} else {
+		struct file *file_instance_ = files_object->file_instance;
+		f->eax = file_length(file_instance_);
+    } 
 	lock_release(&file_lock);
-	return size;
+  }
 }
 
 struct files* get_file_instance_from_fd(int fd) {
