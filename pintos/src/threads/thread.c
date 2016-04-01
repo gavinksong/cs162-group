@@ -264,12 +264,12 @@ thread_create (const char *name, int priority,
 
   /* Create pnode. */
 #ifdef USERPROG
-  struct pnode p = palloc_get_page(PAL_ZERO);
-  p.pid = tid;
-  p.loaded = false;
-  sema_init(&p.sema, 0);
-  p.exit_status = -1;
-  list_push_back(&running_thread ()->children, &p.elem);
+  struct pnode *p = malloc(sizeof(strcut pnode));
+  p->pid = tid;
+  p->loaded = false;
+  sema_init(&p->sema, 0);
+  p->exit_status = -1;
+  list_push_back(&running_thread ()->children, &p->elem);
   t->pnode = &p;
 #endif
 

@@ -47,7 +47,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
+    free (fn_copy);
   return tid;
 }
 
@@ -98,7 +98,7 @@ start_process (void *file_name_)
     }
 
   /* If load failed, quit. */
-  palloc_free_page (file_name_);
+  free (file_name_);
   if (!success) 
     thread_exit ();
 
@@ -161,7 +161,7 @@ process_exit (void)
     {
       struct list_elem *e = list_pop_front (cur->children);
       list_remove (e);
-      palloc_free_page (list_entry (e, struct pnode, elem));
+      free (list_entry (e, struct pnode, elem));
     }
 
   sema_up (&temporary);
