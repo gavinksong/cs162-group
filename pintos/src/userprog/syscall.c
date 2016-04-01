@@ -6,6 +6,7 @@
 #include "threads/init.h"
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 int add_file_to_process(struct file *file_instance_);
@@ -37,6 +38,23 @@ syscall_handler (struct intr_frame *f UNUSED)
   else if (args[0] == SYS_HALT) {
     shutdown_power_off ();
   }
+  else if (args[0] == SYS_EXEC) {
+    pid_t pid = process_execute (args[1]);
+    struct pnode *p = get_child_pnode (pid);
+    sema_down (&p->sema);
+    f->eax = p->loaded ? pid : -1;
+  }
+  else if (args[0] == SYS_WAIT) {
+    struct pnode *p = get_child_pnode (args[1]);
+    if (p != NULL) {
+      sema_down (&p->sema);
+      f->eax = p->exit_status;
+      list_remove (&p->elem);
+      free (p);
+    }
+    else
+      f->eax = -1;
+  }
   else if (args[0] == SYS_CREATE) {
     lock_acquire (&file_lock);
     f->eax = filesys_create (args[1], args[2]);
@@ -54,7 +72,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = -1;
     else
       f->eax = add_file_to_process (file_instance_);
-  lock_release(&file_lock);
+    lock_release(&file_lock);
   }
   else if(args[0] == SYS_FILESIZE) {
     lock_acquire (&file_lock);
