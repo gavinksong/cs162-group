@@ -47,7 +47,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    free (fn_copy);
+    palloc_free_page (fn_copy);
   return tid;
 }
 
@@ -98,7 +98,7 @@ start_process (void *file_name_)
     }
 
   /* If load failed, quit. */
-  free (file_name_);
+  palloc_free_page (file_name_);
   if (!success) 
     thread_exit ();
 
