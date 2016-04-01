@@ -102,7 +102,7 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
-  struct pnode *p = running_thread ()->pnode;
+  struct pnode *p = thread_current ()->pnode;
   p->loaded = true;
   sema_up (&p->sema);
 
