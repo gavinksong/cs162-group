@@ -8,9 +8,13 @@
 
 static void syscall_handler (struct intr_frame *);
 
+/* Needed because only one process is allowed to access to modify the file. */
+struct lock file_lock;
+
 void
 syscall_init (void) 
 {
+  lock_init(&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
