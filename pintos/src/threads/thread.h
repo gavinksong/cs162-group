@@ -108,6 +108,11 @@ struct thread
     /* Owned by timer.c. */
     int64_t alarm_time;                 /* Detects when a thread should wake up. */
 
+    /* Keep track of the files in belongs to the current process. */
+    struct list file_list; 
+    /* Keep track of the current max fd in the current process. Starts from 2. */
+    int cur_fd; 
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
