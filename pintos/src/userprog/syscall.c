@@ -89,6 +89,62 @@ syscall_handler (struct intr_frame *f UNUSED)
   	}
   	lock_release(&file_lock);
   }
+  else if(args[0] == SYS_WRITE) {
+  	lock_acquire(&file_lock);
+  	int fd = args[1];
+  	const void *buffer = (const void *) args[2];
+  	unsigned size = args[3];
+  	if (fd == 1) {
+  		putbuf(buffer, size);
+  		f->eax = size;
+  	} else {
+        struct files *files_object = get_file_instance_from_fd(fd); 
+        if(!files_object){
+        	f->eax = -1;
+        } else {
+            struct file *file_instance_ = files_object->file_instance;
+            f->eax = file_write (file_instance_, buffer, size);
+  	}
+  	lock_release(&file_lock);
+  }
+  else if(args[0] == SYS_SEEK) {
+  	lock_acquire(&file_lock);
+  	int fd = args[1];
+  	unsigned position = args[2];
+    struct files *files_object = get_file_instance_from_fd(fd);
+    if (!files_object) {
+    	f->eax = -1;
+    } else {
+    	struct file *file_instance_ = files_object->file_instance;
+    	file_seek(file_instance_, position);
+    }
+    lock_release(&file_lock);
+  }
+  else if(args[0] == SYS_TELL) {
+    lock_acquire(&file_lock);
+  	int fd = args[1];
+  	struct files *files_object = get_file_instance_from_fd(fd);
+    if (!files_object) {
+    	f->eax = -1;
+    } else {
+    	struct file *file_instance_ = files_object->file_instance;
+    	f->eax = file_tell(file_instance_);
+    }
+    lock_release(&file_lock);
+  }
+  else if(args[0] == SYS_CLOSE) {
+  	lock_acquire(&file_lock);
+  	int fd = args[1];
+  	struct files *files_object = get_file_instance_from_fd(fd);
+    if (!files_object) {
+    	f->eax = -1;
+    } else {
+    	struct file *file_instance_ = files_object->file_instance; 
+    	file_close(file_instance_);
+    	list_remove(files_object->elem); /* Once the file is closed, it is not in the file_list. */
+    }
+    lock_release(&file_lock);
+  }
 }
 
 struct files* get_file_instance_from_fd(int fd) {
