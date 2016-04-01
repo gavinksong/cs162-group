@@ -91,6 +91,19 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 }
 
+struct pnode *get_child_pnode (pid_t pid)
+{
+  struct list *list = thread_current ()->children;
+  struct list_elem *e = list_begin (list);
+  for (; e != list_end (list)); e = list_next (e))
+  {
+    struct pnode *p = list_entry (e, struct pnode, elem);
+    if (p->pid == pid)
+      return p;
+  }
+  return NULL;
+}
+
 struct files* get_file_instance_from_fd(int fd) {
 	struct thread* t = thread_current();
 	struct list_elem *e;
