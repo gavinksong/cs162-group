@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
+#include "threads/malloc.h"
 
 static void syscall_handler (struct intr_frame *);
 int add_file_to_process(struct file *file_instance_);
@@ -47,23 +48,18 @@ syscall_handler (struct intr_frame *f UNUSED)
     lock_release(&file_lock);
   }
   else if (args[0] == OPEN) {
-    f->eax = open_file(args[1]);
+  	lock_release(&file_lock);
+  	struct file *file_instance_ = filesys_open(args[1]);
+  	if (!file_instance_){
+        f ->eax = -1;
+  	} else {
+	  	f->eax = add_file_to_process(file_instance_);
+	}
+	lock_release(&file_lock);
   }
   else if(args[0] == SYS_FILESIZE) {
   	f->eax = get_filesize(args[1]);
   }
-}
-
-int open_file(const char *file) {
-	lock_release(&file_lock);
-  	struct file *file_instance_ = filesys_open(args[1]);
-  	if (!file_instance_){
-  		lock_release(&file_lock);
-        return -1;
-  	}
-  	int fd = add_file_to_process(file_instance_);
-  	lock_release(&file_lock);
-  	return fd;
 }
 
 int get_filesize(int fd) {
@@ -91,7 +87,7 @@ struct files* get_file_instance_from_fd(int fd) {
 }
 
 int add_file_to_process(struct file *file_instance_) {
-	struct files *f = mallock(sizeof(struct files));
+	struct files *f = malloc(sizeof(struct files));
 	f-> file_instance = file_instance_;
 	f->fd = thread_current()->cur_fd++;
 	list_push_back(&thread_current()->file_list, &f->elem);
