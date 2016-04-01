@@ -586,6 +586,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->alarm_time = 0;
 #ifdef USERPROG
   list_init(&t->children);
+  list_init(&t->file_list);
+  t->cur_fd++;
 #endif
   t->magic = THREAD_MAGIC;
 
