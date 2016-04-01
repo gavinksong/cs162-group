@@ -54,7 +54,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = -1;
     else
       f->eax = add_file_to_process (file_instance_);
-  lock_release(&file_lock);
+    lock_release(&file_lock);
   }
   else if(args[0] == SYS_FILESIZE) {
     lock_acquire (&file_lock);
@@ -84,8 +84,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       if (!files_object)
         f->eax = -1;
       else {
-          struct file *file_instance_ = files_object->file_instance;
-          f->eax = file_read (file_instance_, buffer, size);
+        struct file *file_instance_ = files_object->file_instance;
+        f->eax = file_read (file_instance_, buffer, size);
       }
     }
     lock_release (&file_lock);
@@ -98,13 +98,16 @@ syscall_handler (struct intr_frame *f UNUSED)
   	if (fd == 1) {
   		putbuf(buffer, size);
   		f->eax = size;
-  	} else {
-        struct files *files_object = get_file_instance_from_fd(fd); 
-        if(!files_object){
-        	f->eax = -1;
-        } else {
-            struct file *file_instance_ = files_object->file_instance;
-            f->eax = file_write (file_instance_, buffer, size);
+  	} 
+  	else {
+      struct files *files_object = get_file_instance_from_fd(fd); 
+      if(!files_object) {
+      	f->eax = -1;
+      } 
+      else {
+          struct file *file_instance_ = files_object->file_instance;
+          f->eax = file_write (file_instance_, buffer, size);
+	    }
   	}
   	lock_release(&file_lock);
   }
@@ -127,7 +130,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   	struct files *files_object = get_file_instance_from_fd(fd);
     if (!files_object) {
     	f->eax = -1;
-    } else {
+    } 
+    else {
     	struct file *file_instance_ = files_object->file_instance;
     	f->eax = file_tell(file_instance_);
     }
@@ -139,7 +143,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   	struct files *files_object = get_file_instance_from_fd(fd);
     if (!files_object) {
     	f->eax = -1;
-    } else {
+    } 
+    else {
     	struct file *file_instance_ = files_object->file_instance; 
     	file_close(file_instance_);
     	list_remove(files_object->elem); /* Once the file is closed, it is not in the file_list. */
