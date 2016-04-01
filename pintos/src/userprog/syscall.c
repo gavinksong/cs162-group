@@ -101,13 +101,12 @@ syscall_handler (struct intr_frame *f UNUSED)
   	} 
   	else {
       struct files *files_object = get_file_instance_from_fd(fd); 
-      if(!files_object) {
-      	f->eax = -1;
-      } 
+      if(!files_object) 
+        f->eax = -1; 
       else {
-          struct file *file_instance_ = files_object->file_instance;
-          f->eax = file_write (file_instance_, buffer, size);
-	    }
+        struct file *file_instance_ = files_object->file_instance;
+        f->eax = file_write (file_instance_, buffer, size);
+      }
   	}
   	lock_release(&file_lock);
   }
@@ -128,9 +127,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     lock_acquire(&file_lock);
   	int fd = args[1];
   	struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object) {
-    	f->eax = -1;
-    } 
+    if (!files_object)
+    	f->eax = -1; 
     else {
     	struct file *file_instance_ = files_object->file_instance;
     	f->eax = file_tell(file_instance_);
