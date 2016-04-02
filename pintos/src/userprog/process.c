@@ -90,7 +90,7 @@ start_process (void *file_name_)
       memcpy(if_.esp, file_name_, fn_sz);
 
       size_t argv_sz = (argc + 1) * sizeof (char *);
-      if_.esp -= ((int) if_.esp) % 4 + argv_sz;
+      if_.esp -= ((unsigned) if_.esp) % 4 + argv_sz;
       memcpy (if_.esp, argv, argv_sz);
 
       *((char ***) if_.esp - 4) = if_.esp;
