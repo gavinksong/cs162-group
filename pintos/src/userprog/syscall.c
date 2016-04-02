@@ -106,7 +106,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       else if(args[0] == SYS_WRITE)
         f->eax = file_write (fn->file, args[2], args[3]);
       else if(args[0] == SYS_SEEK)
-        f->eax = file_seek (fn->file, args[2]);
+        file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)
         f->eax = file_tell (fn->file);
       else if(args[0] == SYS_CLOSE) {
