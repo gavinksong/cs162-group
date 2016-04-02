@@ -18,6 +18,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;

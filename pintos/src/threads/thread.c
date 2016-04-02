@@ -16,6 +16,7 @@
 #include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "threads/malloc.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -264,13 +265,13 @@ thread_create (const char *name, int priority,
 
   /* Create pnode. */
 #ifdef USERPROG
-  struct pnode *p = malloc(sizeof(struct pnode));
+  struct pnode *p = malloc (sizeof (struct pnode));
   p->pid = tid;
   p->loaded = false;
-  sema_init(&p->sema, 0);
+  sema_init (&p->sema, 0);
   p->exit_status = -1;
-  list_push_back(&running_thread ()->children, &p->elem);
-  t->pnode = &p;
+  list_push_back (&running_thread ()->children, &p->elem);
+  t->pnode = p;
 #endif
 
   /* Stack frame for kernel_thread(). */

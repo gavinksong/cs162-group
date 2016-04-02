@@ -5,8 +5,11 @@
 #include "threads/thread.h"
 #include "threads/init.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "threads/malloc.h"
 #include "userprog/process.h"
+#include "devices/shutdown.h"
+#include "devices/input.h"
 
 /* All pointers for this part must be greater than this addr. */
 #define BOTTOM_OF_USER_ADDR ((void *) 0x08048000)
