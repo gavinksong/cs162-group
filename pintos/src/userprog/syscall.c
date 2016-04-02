@@ -21,6 +21,7 @@ struct fnode
 
 static void syscall_handler (struct intr_frame *);
 int add_file_to_process (struct file *file_);
+struct pnode *get_child_pnode (pid_t pid);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -72,12 +73,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = filesys_create (args[1], args[2]);
     else if (args[0] == SYS_REMOVE)
       f->eax = filesys_remove (args[1]);
-    else if (args[0] == OPEN) {
+    else if (args[0] == SYS_OPEN) {
       struct file *file_ = filesys_open (args[1]);
       f->eax = file_ ? add_file_to_process (file_) : -1;
     }
     else if (args[0] == SYS_READ && args[1] == 0) {
-      void *buffer = args[2];
+      uint8_t *buffer = (uint8_t *) args[2];
       size_t i = 0;
       while (i < args[3]) {
         buffer[i++] = input_getc ();
@@ -88,7 +89,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     else if (args[0] == SYS_WRITE && args[1] == 1) {
       putbuf (args[2], args[3]);
-      f->eax = size;
+      f->eax = args[3];
     }
     else {
       struct fnode *fn = get_file_from_fd (args[1]);
@@ -97,17 +98,18 @@ syscall_handler (struct intr_frame *f UNUSED)
       if (args[0] == SYS_FILESIZE)
         f->eax = file_length (fn->file);
       else if (args[0] == SYS_READ)
-        f->eax = file_read (fn->file, buffer, size);
+        f->eax = file_read (fn->file, args[2], args[3]);
       else if(args[0] == SYS_WRITE)
-        f->eax = file_write (fn->file, buffer, size);
+        f->eax = file_write (fn->file, args[2], args[3]);
       else if(args[0] == SYS_SEEK)
         f->eax = file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)
         f->eax = file_tell (fn->file);
-      else if(args[0] == SYS_CLOSE)
+      else if(args[0] == SYS_CLOSE) {
         file_close (fn->file);
         list_remove (fn->elem);
         free (fn);
+      }
       }
     }
     lock_release (&file_lock);
@@ -118,7 +120,7 @@ struct pnode *get_child_pnode (pid_t pid)
 {
   struct list *list = thread_current ()->children;
   struct list_elem *e = list_begin (list);
-  for (; e != list_end (list)); e = list_next (e)) {
+  for (; e != list_end (list); e = list_next (e)) {
     struct pnode *p = list_entry (e, struct pnode, elem);
     if (p->pid == pid)
       return p;
