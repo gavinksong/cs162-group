@@ -22,6 +22,7 @@ struct fnode
 static void syscall_handler (struct intr_frame *);
 int add_file_to_process (struct file *file_);
 struct pnode *get_child_pnode (pid_t pid);
+struct fnode *get_file_from_fd (int fd);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -107,9 +108,8 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = file_tell (fn->file);
       else if(args[0] == SYS_CLOSE) {
         file_close (fn->file);
-        list_remove (fn->elem);
+        list_remove (&fn->elem);
         free (fn);
-      }
       }
     }
     lock_release (&file_lock);
@@ -118,9 +118,9 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 struct pnode *get_child_pnode (pid_t pid)
 {
-  struct list *list = thread_current ()->children;
-  struct list_elem *e = list_begin (list);
-  for (; e != list_end (list); e = list_next (e)) {
+  struct list list_ = thread_current ()->children;
+  struct list_elem *e = list_begin (&list_);
+  for (; e != list_end (&list_); e = list_next (e)) {
     struct pnode *p = list_entry (e, struct pnode, elem);
     if (p->pid == pid)
       return p;
@@ -129,9 +129,9 @@ struct pnode *get_child_pnode (pid_t pid)
 }
 
 struct fnode *get_file_from_fd (int fd) {
-  struct list *list = thread_current ()->file_list;
-  struct list_elem *e = list_begin (list);
-  for (; e != list_end (list); e = list_next (e)) {
+  struct list list_ = thread_current ()->file_list;
+  struct list_elem *e = list_begin (&list_);
+  for (; e != list_end (&list_); e = list_next (e)) {
     struct fnode *f = list_entry (e, struct fnode, elem);
     if (f->fd == fd)
       return f;
