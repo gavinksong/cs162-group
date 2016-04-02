@@ -7,8 +7,12 @@
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
 
+/* All pointers for this part must be greater than this addr. */
+#define BOTTOM_OF_USER_ADDR ((void *) 0x08048000)
+
 static void syscall_handler (struct intr_frame *);
 int add_file_to_process(struct file *file_instance_);
+void check_valid_ptr(void *ptr);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -107,7 +111,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         struct file *file_instance_ = files_object->file_instance;
         f->eax = file_write (file_instance_, buffer, size);
       }
-  	}
+    }
   	lock_release(&file_lock);
   }
   else if(args[0] == SYS_SEEK) {

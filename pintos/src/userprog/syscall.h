@@ -1,7 +1,7 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
-struct files{
+struct files {
 	/* Keep track of the file descriptor. */
     int fd;
     /* The actual file instance. */
