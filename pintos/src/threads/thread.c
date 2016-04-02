@@ -264,7 +264,7 @@ thread_create (const char *name, int priority,
 
   /* Create pnode. */
 #ifdef USERPROG
-  struct pnode *p = malloc(sizeof(strcut pnode));
+  struct pnode *p = malloc(sizeof(struct pnode));
   p->pid = tid;
   p->loaded = false;
   sema_init(&p->sema, 0);

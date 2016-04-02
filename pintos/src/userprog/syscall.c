@@ -6,13 +6,21 @@
 #include "threads/init.h"
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
+#include "userprog/process.h"
 
 /* All pointers for this part must be greater than this addr. */
 #define BOTTOM_OF_USER_ADDR ((void *) 0x08048000)
 
+struct fnode
+  {
+    int fd;                         /* File descriptor. */
+    const char *name;
+    struct file *file;     /* The actual file instance. */
+    struct list_elem elem;          /* List element for thread's file list */
+  };
+
 static void syscall_handler (struct intr_frame *);
-int add_file_to_process(struct file *file_instance_);
-void check_valid_ptr(void *ptr);
+int add_file_to_process (struct file *file_);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -20,7 +28,7 @@ struct lock file_lock;
 void
 syscall_init (void) 
 {
-  lock_init(&file_lock);
+  lock_init (&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -41,117 +49,68 @@ syscall_handler (struct intr_frame *f UNUSED)
   else if (args[0] == SYS_HALT) {
     shutdown_power_off ();
   }
-  else if (args[0] == SYS_CREATE) {
-    lock_acquire (&file_lock);
-    f->eax = filesys_create (args[1], args[2]);
-    lock_release (&file_lock);
+  else if (args[0] == SYS_EXEC) {
+    pid_t pid = process_execute (args[1]);
+    struct pnode *p = get_child_pnode (pid);
+    sema_down (&p->sema);
+    f->eax = p->loaded ? pid : -1;
   }
-  else if (args[0] == SYS_REMOVE) {
-    lock_acquire (&file_lock);
-    f->eax = filesys_remove (args[1]);
-    lock_release (&file_lock);
-  }
-  else if (args[0] == OPEN) {
-    lock_release (&file_lock);
-    struct file *file_instance_ = filesys_open (args[1]);
-    if (!file_instance_)
-        f->eax = -1;
-    else
-      f->eax = add_file_to_process (file_instance_);
-    lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_FILESIZE) {
-    lock_acquire (&file_lock);
-    struct files *files_object = get_file_instance_from_fd (args[1]); 
-    if (!files_object)
-      f->eax = -1;
-    else {
-      struct file *file_instance_ = files_object->file_instance;
-      f->eax = file_length (file_instance_);
+  else if (args[0] == SYS_WAIT) {
+    struct pnode *p = get_child_pnode (args[1]);
+    if (p != NULL) {
+      sema_down (&p->sema);
+      f->eax = p->exit_status;
+      list_remove (&p->elem);
+      free (p);
     }
-    lock_release (&file_lock);
+    else
+      f->eax = -1;
   }
-  else if (args[0] == SYS_READ) {
+  else {
     lock_acquire (&file_lock);
-    int fd = args[1];
-    void *buffer = (void *) args[2];
-    unsigned size = args[3];
-    if (fd == 0) {
-      unsigned start;
-      for (start = 0; start < size; start ++) {
-        buffer[start] = input_getc ();
+    if (args[0] == SYS_CREATE)
+      f->eax = filesys_create (args[1], args[2]);
+    else if (args[0] == SYS_REMOVE)
+      f->eax = filesys_remove (args[1]);
+    else if (args[0] == OPEN) {
+      struct file *file_ = filesys_open (args[1]);
+      f->eax = file_ ? add_file_to_process (file_) : -1;
+    }
+    else if (args[0] == SYS_READ && args[1] == 0) {
+      void *buffer = args[2];
+      size_t i = 0;
+      while (i < args[3]) {
+        buffer[i++] = input_getc ();
+        if (buffer[i] == '\n')
+          break;
       }
+      f->eax = i;
+    }
+    else if (args[0] == SYS_WRITE && args[1] == 1) {
+      putbuf (args[2], args[3]);
       f->eax = size;
     }
     else {
-      struct files *files_object = get_file_instance_from_fd (fd); 
-      if (!files_object)
+      struct fnode *fn = get_file_from_fd (args[1]);
+      if (fn == NULL)
         f->eax = -1;
-      else {
-        struct file *file_instance_ = files_object->file_instance;
-        f->eax = file_read (file_instance_, buffer, size);
+      if (args[0] == SYS_FILESIZE)
+        f->eax = file_length (fn->file);
+      else if (args[0] == SYS_READ)
+        f->eax = file_read (fn->file, buffer, size);
+      else if(args[0] == SYS_WRITE)
+        f->eax = file_write (fn->file, buffer, size);
+      else if(args[0] == SYS_SEEK)
+        f->eax = file_seek (fn->file, args[2]);
+      else if(args[0] == SYS_TELL)
+        f->eax = file_tell (fn->file);
+      else if(args[0] == SYS_CLOSE)
+        file_close (fn->file);
+        list_remove (fn->elem);
+        free (fn);
       }
     }
     lock_release (&file_lock);
-  }
-  else if(args[0] == SYS_WRITE) {
-  	lock_acquire(&file_lock);
-  	int fd = args[1];
-  	const void *buffer = (const void *) args[2];
-  	unsigned size = args[3];
-  	if (fd == 1) {
-  		putbuf(buffer, size);
-  		f->eax = size;
-  	} 
-  	else {
-      struct files *files_object = get_file_instance_from_fd(fd); 
-      if(!files_object) 
-        f->eax = -1; 
-      else {
-        struct file *file_instance_ = files_object->file_instance;
-        f->eax = file_write (file_instance_, buffer, size);
-      }
-    }
-  	lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_SEEK) {
-  	lock_acquire(&file_lock);
-  	int fd = args[1];
-  	unsigned position = args[2];
-    struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object) {
-    	f->eax = -1;
-    } else {
-    	struct file *file_instance_ = files_object->file_instance;
-    	file_seek(file_instance_, position);
-    }
-    lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_TELL) {
-    lock_acquire(&file_lock);
-  	int fd = args[1];
-  	struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object)
-    	f->eax = -1; 
-    else {
-    	struct file *file_instance_ = files_object->file_instance;
-    	f->eax = file_tell(file_instance_);
-    }
-    lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_CLOSE) {
-  	lock_acquire(&file_lock);
-  	int fd = args[1];
-  	struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object) {
-    	f->eax = -1;
-    } 
-    else {
-    	struct file *file_instance_ = files_object->file_instance; 
-    	file_close(file_instance_);
-    	list_remove(files_object->elem); /* Once the file is closed, it is not in the file_list. */
-    }
-    lock_release(&file_lock);
   }
 }
 
@@ -167,20 +126,20 @@ struct pnode *get_child_pnode (pid_t pid)
   return NULL;
 }
 
-struct files* get_file_instance_from_fd(int fd) {
-  struct thread* t = thread_current ();
-  struct list_elem *e;
-  for(e = list_begin (&t->file_list); e != list_end (&t->file_list); e = list_next (e)) {
-    struct files = list_entry(e, struct files, elem);
-    if (fd == files->fd)
-      return files;
+struct fnode *get_file_from_fd (int fd) {
+  struct list *list = thread_current ()->file_list;
+  struct list_elem *e = list_begin (list);
+  for (; e != list_end (list); e = list_next (e)) {
+    struct fnode *f = list_entry (e, struct fnode, elem);
+    if (f->fd == fd)
+      return f;
   }
   return NULL;
 }
 
-int add_file_to_process(struct file *file_instance_) {
-  struct files *f = malloc (sizeof (struct files));
-  f->file_instance = file_instance_;
+int add_file_to_process(struct file *file_) {
+  struct fnode *f = malloc (sizeof (struct fnode));
+  f->file = file_;
   f->fd = thread_current ()->cur_fd++;
   list_push_back (&thread_current ()->file_list, &f->elem);
   return f->fd;
