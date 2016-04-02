@@ -8,8 +8,16 @@
 #include "threads/malloc.h"
 #include "userprog/process.h"
 
+struct fnode
+  {
+    int fd;                         /* File descriptor. */
+    const char *name;
+    struct file *file;     /* The actual file instance. */
+    struct list_elem elem;          /* List element for thread's file list */
+  };
+
 static void syscall_handler (struct intr_frame *);
-int add_file_to_process(struct file *file_instance_);
+int add_file_to_process (struct file *file_);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -17,7 +25,7 @@ struct lock file_lock;
 void
 syscall_init (void) 
 {
-  lock_init(&file_lock);
+  lock_init (&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -66,23 +74,21 @@ syscall_handler (struct intr_frame *f UNUSED)
     lock_release (&file_lock);
   }
   else if (args[0] == OPEN) {
-    lock_release (&file_lock);
-    struct file *file_instance_ = filesys_open (args[1]);
-    if (!file_instance_)
+    lock_acquire (&file_lock);
+    struct file *file_ = filesys_open (args[1]);
+    if (!file_)
         f->eax = -1;
     else
-      f->eax = add_file_to_process (file_instance_);
-    lock_release(&file_lock);
+      f->eax = add_file_to_process (file_);
+    lock_release (&file_lock);
   }
-  else if(args[0] == SYS_FILESIZE) {
+  else if (args[0] == SYS_FILESIZE) {
     lock_acquire (&file_lock);
-    struct files *files_object = get_file_instance_from_fd (args[1]); 
-    if (!files_object)
+    struct fnode *f = get_file_from_fd (args[1]); 
+    if (f == NULL)
       f->eax = -1;
-    else {
-      struct file *file_instance_ = files_object->file_instance;
-      f->eax = file_length (file_instance_);
-    }
+    else
+      f->eax = file_length (f->file);
     lock_release (&file_lock);
   }
   else if (args[0] == SYS_READ) {
@@ -98,74 +104,63 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = size;
     }
     else {
-      struct files *files_object = get_file_instance_from_fd (fd); 
-      if (!files_object)
+      struct fnode *f = get_file_from_fd (fd); 
+      if (f == NULL)
         f->eax = -1;
-      else {
-        struct file *file_instance_ = files_object->file_instance;
-        f->eax = file_read (file_instance_, buffer, size);
-      }
+      else
+        f->eax = file_read (f->file, buffer, size);
     }
     lock_release (&file_lock);
   }
   else if(args[0] == SYS_WRITE) {
-  	lock_acquire(&file_lock);
-  	int fd = args[1];
-  	const void *buffer = (const void *) args[2];
-  	unsigned size = args[3];
-  	if (fd == 1) {
-  		putbuf(buffer, size);
-  		f->eax = size;
-  	} 
-  	else {
-      struct files *files_object = get_file_instance_from_fd(fd); 
-      if(!files_object) 
-        f->eax = -1; 
-      else {
-        struct file *file_instance_ = files_object->file_instance;
-        f->eax = file_write (file_instance_, buffer, size);
-      }
-  	}
-  	lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_SEEK) {
-  	lock_acquire(&file_lock);
-  	int fd = args[1];
-  	unsigned position = args[2];
-    struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object) {
-    	f->eax = -1;
-    } else {
-    	struct file *file_instance_ = files_object->file_instance;
-    	file_seek(file_instance_, position);
-    }
-    lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_TELL) {
-    lock_acquire(&file_lock);
-  	int fd = args[1];
-  	struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object)
-    	f->eax = -1; 
-    else {
-    	struct file *file_instance_ = files_object->file_instance;
-    	f->eax = file_tell(file_instance_);
-    }
-    lock_release(&file_lock);
-  }
-  else if(args[0] == SYS_CLOSE) {
-  	lock_acquire(&file_lock);
-  	int fd = args[1];
-  	struct files *files_object = get_file_instance_from_fd(fd);
-    if (!files_object) {
-    	f->eax = -1;
+    lock_acquire (&file_lock);
+    int fd = args[1];
+    const void *buffer = (const void *) args[2];
+    unsigned size = args[3];
+    if (fd == 1) {
+      putbuf (buffer, size);
+      f->eax = size;
     } 
     else {
-    	struct file *file_instance_ = files_object->file_instance; 
-    	file_close(file_instance_);
-    	list_remove(files_object->elem); /* Once the file is closed, it is not in the file_list. */
+      struct fnode *f = get_file_from_fd (fd); 
+      if (f == NULL) 
+        f->eax = -1; 
+      else
+        f->eax = file_write (f->file, buffer, size);
     }
     lock_release(&file_lock);
+  }
+  else if(args[0] == SYS_SEEK) {
+    lock_acquire (&file_lock);
+    int fd = args[1];
+    struct fnode *f = get_file_from_fd (fd);
+    if (f == NULL)
+      f->eax = -1;
+    else
+      file_seek (f->file, args[2]);
+    lock_release (&file_lock);
+  }
+  else if(args[0] == SYS_TELL) {
+    lock_acquire (&file_lock);
+    int fd = args[1];
+    struct fnode *f = get_file_from_fd (fd);
+    if (f == NULL)
+      f->eax = -1; 
+    else
+      f->eax = file_tell (f->file);
+    lock_release (&file_lock);
+  }
+  else if(args[0] == SYS_CLOSE) {
+    lock_acquire (&file_lock);
+    int fd = args[1];
+    struct fnode *f = get_file_from_fd (fd);
+    if (f == NULL)
+      f->eax = -1;
+    else {
+      file_close (f->file);
+      list_remove (f->elem); /* Once the file is closed, it is not in the file_list. */
+    }
+    lock_release (&file_lock);
   }
 }
 
@@ -181,20 +176,20 @@ struct pnode *get_child_pnode (pid_t pid)
   return NULL;
 }
 
-struct files* get_file_instance_from_fd(int fd) {
+struct fnode* get_file_from_fd(int fd) {
   struct thread* t = thread_current ();
   struct list_elem *e;
   for(e = list_begin (&t->file_list); e != list_end (&t->file_list); e = list_next (e)) {
-    struct files = list_entry(e, struct files, elem);
-    if (fd == files->fd)
-      return files;
+    struct fnode = list_entry(e, struct fnode, elem);
+    if (fd == fnode->fd)
+      return fnode;
   }
   return NULL;
 }
 
-int add_file_to_process(struct file *file_instance_) {
-  struct files *f = malloc (sizeof (struct files));
-  f->file_instance = file_instance_;
+int add_file_to_process(struct file *file_) {
+  struct fnode *f = malloc (sizeof (struct fnode));
+  f->file = file_;
   f->fd = thread_current ()->cur_fd++;
   list_push_back (&thread_current ()->file_list, &f->elem);
   return f->fd;
