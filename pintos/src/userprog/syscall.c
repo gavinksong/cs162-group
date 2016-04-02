@@ -123,11 +123,11 @@ struct pnode *get_child_pnode (pid_t pid)
   return NULL;
 }
 
-struct fnode *get_file_from_fd(int fd) {
+struct fnode *get_file_from_fd (int fd) {
   struct list *list = thread_current ()->file_list;
   struct list_elem *e = list_begin (list);
   for (; e != list_end (list); e = list_next (e)) {
-    struct fnode *f = list_entry(e, struct fnode, elem);
+    struct fnode *f = list_entry (e, struct fnode, elem);
     if (f->fd == fd)
       return f;
   }

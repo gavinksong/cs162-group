@@ -2,6 +2,7 @@
 #define USERPROG_PROCESS_H
 
 #include "threads/thread.h"
+#include "lib/user/syscall.h"
 
 struct pnode
   {

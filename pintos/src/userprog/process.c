@@ -157,9 +157,9 @@ process_exit (void)
     }
 
   /* Free all child pnodes. */
-  while (!list_empty (cur->children))
+  while (!list_empty (&cur->children))
     {
-      struct list_elem *e = list_pop_front (cur->children);
+      struct list_elem *e = list_pop_front (&cur->children);
       list_remove (e);
       free (list_entry (e, struct pnode, elem));
     }
