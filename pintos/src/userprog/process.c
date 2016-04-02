@@ -58,16 +58,16 @@ static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
-  size_t fn_len = strlen (file_name);
+  size_t fn_sz = strlen (file_name) + 1;
   struct intr_frame if_;
   bool success;
 
-  char *argv[20]; 
+  char *argv[20];
   size_t argc = 0;
   char *save_ptr;
 
   char *token = strtok_r (file_name, " ", &save_ptr);
-  int offset = PHYS_BASE - fn_len - file_name_;
+  int offset = PHYS_BASE - fn_sz - file_name_;
 
   while (token != NULL)
     {
@@ -86,8 +86,8 @@ start_process (void *file_name_)
 
   if (success)
     {
-      if_.esp -= fn_len;
-      memcpy(if_.esp, file_name_, fn_len);
+      if_.esp -= fn_sz;
+      memcpy(if_.esp, file_name_, fn_sz);
 
       size_t argv_sz = (argc + 1) * sizeof (char *);
       if_.esp -= ((int) if_.esp) % 4 + argv_sz;
