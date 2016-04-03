@@ -62,7 +62,7 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  char *argv[20];
+  char *argv[128];
   size_t argc = 0;
   char *save_ptr;
 
