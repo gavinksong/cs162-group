@@ -52,7 +52,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     shutdown_power_off ();
   }
   else if (args[0] == SYS_EXEC) {
-    pid_t pid = process_execute (args[1]);
+    pid_t pid = process_execute (args[1]); // args[1] is expected to be a user string
     struct pnode *p = get_child_pnode (pid);
     sema_down (&p->sema);
     f->eax = p->loaded ? pid : -1;
@@ -69,17 +69,17 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = -1;
   }
   else {
-    lock_acquire (&file_lock);
+    lock_acquire (&file_lock); // Remember to close in case of invalid ptr before killing thread
     if (args[0] == SYS_CREATE)
-      f->eax = filesys_create (args[1], args[2]);
+      f->eax = filesys_create (args[1], args[2]); // args[1] is expected to be a user string
     else if (args[0] == SYS_REMOVE)
-      f->eax = filesys_remove (args[1]);
+      f->eax = filesys_remove (args[1]); // args[1] is expected to be a user string
     else if (args[0] == SYS_OPEN) {
-      struct file *file_ = filesys_open (args[1]);
+      struct file *file_ = filesys_open (args[1]); // args[1] is expected to be a user string
       f->eax = file_ ? add_file_to_process (file_) : -1;
     }
     else if (args[0] == SYS_READ && args[1] == 0) {
-      uint8_t *buffer = (uint8_t *) args[2];
+      uint8_t *buffer = (uint8_t *) args[2]; // args[2] is expected to be a buffer of size args[3]
       size_t i = 0;
       while (i < args[3]) {
         buffer[i++] = input_getc ();
@@ -89,7 +89,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = i;
     }
     else if (args[0] == SYS_WRITE && args[1] == 1) {
-      putbuf (args[2], args[3]);
+      putbuf (args[2], args[3]); // args[2] is expected to be a buffer of size args[3]
       f->eax = args[3];
     }
     else {
@@ -99,9 +99,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       if (args[0] == SYS_FILESIZE)
         f->eax = file_length (fn->file);
       else if (args[0] == SYS_READ)
-        f->eax = file_read (fn->file, args[2], args[3]);
+        f->eax = file_read (fn->file, args[2], args[3]); // args[2] is expected to be a buffer of size args[3]
       else if(args[0] == SYS_WRITE)
-        f->eax = file_write (fn->file, args[2], args[3]);
+        f->eax = file_write (fn->file, args[2], args[3]); // args[2] is expected to be a buffer of size args[3]
       else if(args[0] == SYS_SEEK)
         file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)
