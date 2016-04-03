@@ -84,24 +84,22 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
-  if (success)
-    {
-      if_.esp -= fn_sz;
-      memcpy(if_.esp, file_name_, fn_sz);
-
-      size_t argv_sz = (argc + 1) * sizeof (char *);
-      if_.esp -= ((unsigned) if_.esp) % 4 + argv_sz;
-      memcpy (if_.esp, argv, argv_sz);
-
-      *((char ***) if_.esp - 4) = if_.esp;
-      *((int *) if_.esp - 8) = argc;
-      if_.esp -= 12;
-    }
-
   /* If load failed, quit. */
-  palloc_free_page (file_name_);
   if (!success) 
     thread_exit ();
+
+  if_.esp -= fn_sz;
+  memcpy(if_.esp, file_name_, fn_sz);
+
+  size_t argv_sz = (argc + 1) * sizeof (char *);
+  if_.esp -= ((unsigned) if_.esp) % 4 + argv_sz;
+  memcpy (if_.esp, argv, argv_sz);
+
+  *((char ***) (if_.esp - 4)) = if_.esp;
+  *((int *) (if_.esp - 8)) = argc;
+  if_.esp -= 12;
+
+  palloc_free_page (file_name_);
 
   struct pnode *p = thread_current ()->pnode;
   p->loaded = true;
