@@ -11,9 +11,6 @@
 #include "devices/shutdown.h"
 #include "devices/input.h"
 
-/* All pointers for this part must be greater than this addr. */
-#define BOTTOM_OF_USER_ADDR ((void *) 0x08048000)
-
 struct fnode
   {
     int fd;                         /* File descriptor. */
@@ -26,6 +23,7 @@ static void syscall_handler (struct intr_frame *);
 int add_file_to_process (struct file *file_);
 struct pnode *get_child_pnode (pid_t pid);
 struct fnode *get_file_from_fd (int fd);
+bool valid_ptr (void *ptr, size_t size);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -147,4 +145,13 @@ int add_file_to_process(struct file *file_) {
   f->fd = thread_current ()->cur_fd++;
   list_push_back (&thread_current ()->file_list, &f->elem);
   return f->fd;
+}
+
+bool valid_addr (void *uaddr) {
+  kaddr = pagedir_get_page (thread_current ()->pagedir, uaddr);
+  return uaddr != NULL && uaddr < PHYS_BASE && kaddr != NULL;
+}
+
+bool valid_ptr (void *ptr, size_t size) {
+  return valid_addr (ptr) && valid_addr (ptr + size);
 }
