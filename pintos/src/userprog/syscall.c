@@ -26,6 +26,7 @@ static void syscall_handler (struct intr_frame *);
 int add_file_to_process (struct file *file_);
 struct fnode *get_file_from_fd (int fd);
 void check_ptr (void *ptr, size_t size);
+void check_string (char *ptr);
 bool valid_addr (void *uaddr);
 
 /* Needed because only one process is allowed to access to modify the file. */
@@ -70,8 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CREATE:
     case SYS_REMOVE:
     case SYS_OPEN:
-      // FIX: strlen can crash if ptr is invalid. (accounts for five of the failed tests)
-      check_ptr ((char *) args[1], strlen ((char *) args[1]) + 1);
+      check_string ((char *) args[1]);
       break;
     // For the following syscalls, args[2] is expected to be a buffer of size args[3].
     case SYS_WRITE:
@@ -173,4 +173,13 @@ bool valid_addr (void *uaddr) {
 void check_ptr (void *ptr, size_t size) {
   if (!valid_addr (ptr) || !valid_addr (ptr + size))
     thread_exit ();
+}
+
+void check_string (char *ustr) {
+  if (is_user_vaddr (ustr)) {
+    char *kstr = pagedir_get_page (thread_current ()->pagedir, ustr);
+    if (kstr != NULL && valid_addr (ustr + strlen (kstr) + 1))
+      return;
+  }
+  thread_exit ();
 }
