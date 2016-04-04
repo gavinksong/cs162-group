@@ -267,6 +267,7 @@ thread_create (const char *name, int priority,
 #ifdef USERPROG
   struct pnode *p = malloc (sizeof (struct pnode));
   p->pid = tid;
+  p->exe = NULL;
   p->loaded = false;
   sema_init (&p->sema, 0);
   p->exit_status = -1;
