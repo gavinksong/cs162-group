@@ -22,7 +22,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-struct pnode *get_child_pnode (pid_t pid);
+static struct pnode *get_child_pnode (pid_t pid);
 
 struct pnode *get_child_pnode (pid_t pid)
 {
@@ -54,6 +54,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   char *save_ptr;
+  // I think this is crashing because strtok_r is trying to modify a read-only string literal.
   file_name = strtok_r((char *) file_name, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */

@@ -69,6 +69,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXEC:
     case SYS_CREATE:
     case SYS_REMOVE:
+    case SYS_OPEN:
+      // FIX: strlen can crash if ptr is invalid. (accounts for five of the failed tests)
       check_ptr ((char *) args[1], strlen ((char *) args[1]) + 1);
       break;
     // For the following syscalls, args[2] is expected to be a buffer of size args[3].
@@ -123,7 +125,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       struct fnode *fn = get_file_from_fd (args[1]);
       if (fn == NULL)
         f->eax = -1;
-      if (args[0] == SYS_FILESIZE)
+      else if (args[0] == SYS_FILESIZE)
         f->eax = file_length (fn->file);
       else if (args[0] == SYS_READ)
         f->eax = file_read (fn->file, (void *) args[2], args[3]);
