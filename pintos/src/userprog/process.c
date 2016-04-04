@@ -20,9 +20,21 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 
-static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+struct pnode *get_child_pnode (pid_t pid);
+
+struct pnode *get_child_pnode (pid_t pid)
+{
+  struct list *list_ = &thread_current ()->children;
+  struct list_elem *e = list_begin (list_);
+  for (; e != list_end (list_); e = list_next (e)) {
+    struct pnode *p = list_entry (e, struct pnode, elem);
+    if (p->pid == pid)
+      return p;
+  }
+  return NULL;
+};
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -34,7 +46,6 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
-  sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -49,7 +60,10 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  return tid;
+
+  struct pnode *p = get_child_pnode (tid);
+  sema_down (&p->sema);
+  return p->loaded ? tid : -1;
 }
 
 /* A thread function that loads a user process and starts it
@@ -125,10 +139,17 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  sema_down (&temporary);
-  return 0;
+  struct pnode *p = get_child_pnode (child_tid);
+  int status = -1;
+  if (p != NULL) {
+    sema_down (&p->sema);
+    status = p->exit_status;
+    list_remove (&p->elem);
+    free (p);
+  }
+  return status;
 }
 
 /* Free the current process's resources. */
@@ -163,7 +184,8 @@ process_exit (void)
       free (list_entry (e, struct pnode, elem));
     }
 
-  sema_up (&temporary);
+  printf ("%s: exit(%d)\n", (char *) &cur->name, cur->pnode->exit_status);
+
   sema_up (&cur->pnode->sema);
 }
 
