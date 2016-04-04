@@ -115,10 +115,8 @@ struct thread
     struct list children;               /* List of children processes. */
     
     /* Owned by userprog/syscall.c. */
-    /* Keep track of the files in belongs to the current process. */
-    struct list file_list; 
-    /* Keep track of the current max fd in the current process. Starts from 2. */
-    int cur_fd; 
+    struct list file_list;              /* Basically a file table. */
+    int cur_fd;                         /* The next available file descriptor */
 #endif
 
     /* Owned by thread.c. */

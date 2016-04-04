@@ -163,6 +163,7 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  /* Close executable (enable write). */
   file_close (cur->pnode->exe);
 
   /* Destroy the current process's page directory and switch back
@@ -186,8 +187,16 @@ process_exit (void)
   while (!list_empty (&cur->children))
     {
       struct list_elem *e = list_pop_front (&cur->children);
-      list_remove (e);
       free (list_entry (e, struct pnode, elem));
+    }
+
+  /* Close all files. */
+  while (!list_empty (&cur->file_list))
+    {
+      struct list_elem *e = list_pop_front (&cur->file_list);
+      struct fnode *f = list_entry (e, struct fnode, elem);
+      file_close (f->file);
+      free (f);
     }
 
   printf ("%s: exit(%d)\n", (char *) &cur->name, cur->pnode->exit_status);

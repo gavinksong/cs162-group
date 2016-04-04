@@ -15,6 +15,14 @@ struct pnode
     int exit_status;          /* Default value of -1. */
   };
 
+struct fnode
+  {
+    int fd;                         /* File descriptor. */
+    const char *name;
+    struct file *file;              /* The actual file instance. */
+    struct list_elem elem;          /* List element for thread's file list */
+  };
+
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
 void process_exit (void);

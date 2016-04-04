@@ -14,14 +14,6 @@
 #include "devices/shutdown.h"
 #include "devices/input.h"
 
-struct fnode
-  {
-    int fd;                         /* File descriptor. */
-    const char *name;
-    struct file *file;     /* The actual file instance. */
-    struct list_elem elem;          /* List element for thread's file list */
-  };
-
 static void syscall_handler (struct intr_frame *);
 int add_file_to_process (struct file *file_);
 struct fnode *get_file_from_fd (int fd);
