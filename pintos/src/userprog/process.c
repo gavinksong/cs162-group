@@ -44,6 +44,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+  char *name;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -53,14 +54,16 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  char *save_ptr;
-  // I think this is crashing because strtok_r is trying to modify a read-only string literal.
-  file_name = strtok_r((char *) file_name, " ", &save_ptr);
+  size_t name_len = strcspn (file_name, " ") + 1;
+  name = malloc (name_len * sizeof (char));
+  strlcpy (name, file_name, name_len);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+
+  free (name);
 
   struct pnode *p = get_child_pnode (tid);
   sema_down (&p->sema);
