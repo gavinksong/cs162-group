@@ -84,8 +84,24 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = process_execute ((char *) args[1]);
   else if (args[0] == SYS_WAIT)
     f->eax = process_wait (args[1]);
+  else if (args[0] == SYS_READ && args[1] == 0) {
+    // Read from stdin.
+    uint8_t *buffer = (uint8_t *) args[2];
+    size_t i = 0;
+    while (i < args[3]) {
+      buffer[i++] = input_getc ();
+      if (buffer[i] == '\n')
+        break;
+    }
+    f->eax = i;
+  }
+  else if (args[0] == SYS_WRITE && args[1] == 1) {
+    // Write to stdout.
+    putbuf ((void *) args[2], args[3]);
+    f->eax = args[3];
+  }
   else {
-    // The remaining syscalls are all file system operations.
+    // The remaining syscalls all utilize the file system.
     lock_acquire (&file_lock);
 
     if (args[0] == SYS_CREATE)
@@ -95,22 +111,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if (args[0] == SYS_OPEN) {
       struct file *file_ = filesys_open ((char *) args[1]);
       f->eax = file_ ? add_file_to_process (file_) : -1;
-    }
-    // Syscall for reading from stdin.
-    else if (args[0] == SYS_READ && args[1] == 0) {
-      uint8_t *buffer = (uint8_t *) args[2];
-      size_t i = 0;
-      while (i < args[3]) {
-        buffer[i++] = input_getc ();
-        if (buffer[i] == '\n')
-          break;
-      }
-      f->eax = i;
-    }
-    // Syscall for writing to stdout.
-    else if (args[0] == SYS_WRITE && args[1] == 1) {
-      putbuf ((void *) args[2], args[3]);
-      f->eax = args[3];
     }
     else {
       // For the remaining syscalls, args[1] is a file descriptor.
