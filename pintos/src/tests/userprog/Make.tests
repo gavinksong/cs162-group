@@ -15,7 +15,7 @@ write-boundary write-zero write-stdin write-bad-fd exec-once exec-arg	\
 exec-multiple exec-missing exec-bad-ptr wait-simple wait-twice		\
 wait-killed wait-bad-pid multi-recurse multi-child-fd rox-simple	\
 rox-child rox-multichild bad-read bad-write bad-read2 bad-write2        \
-bad-jump bad-jump2 iloveos practice)
+bad-jump bad-jump2 iloveos practice echo)
 
 tests/userprog_PROGS = $(tests/userprog_TESTS) $(addprefix \
 tests/userprog/,child-simple child-args child-bad child-close child-rox)
@@ -100,6 +100,8 @@ tests/userprog/child-bad_SRC = tests/userprog/child-bad.c tests/main.c
 tests/userprog/child-close_SRC = tests/userprog/child-close.c
 tests/userprog/child-rox_SRC = tests/userprog/child-rox.c
 
+tests/userprog/echo_SRC = tests/userprog/echo.c tests/main.c
+
 $(foreach prog,$(tests/userprog_PROGS),$(eval $(prog)_SRC += tests/lib.c))
 
 tests/userprog/args-single_ARGS = onearg
@@ -107,6 +109,8 @@ tests/userprog/args-multiple_ARGS = some arguments for you!
 tests/userprog/args-many_ARGS = a b c d e f g h i j k l m n o p q r s t u v
 tests/userprog/args-dbl-space_ARGS = two  spaces!
 tests/userprog/multi-recurse_ARGS = 15
+
+tests/userprog/echo_INPUT = ../../tests/userprog/echo.input
 
 tests/userprog/open-normal_PUTFILES += tests/userprog/sample.txt
 tests/userprog/open-boundary_PUTFILES += tests/userprog/sample.txt

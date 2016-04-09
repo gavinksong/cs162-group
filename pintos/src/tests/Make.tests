@@ -46,6 +46,7 @@ outputs:: $(OUTPUTS)
 
 $(foreach prog,$(PROGS),$(eval $(prog).output: $(prog)))
 $(foreach test,$(TESTS),$(eval $(test).output: $($(test)_PUTFILES)))
+$(foreach test,$(TESTS),$(eval $(test).output: $($(test)_INPUT)))
 $(foreach test,$(TESTS),$(eval $(test).output: TEST = $(test)))
 
 # Prevent an environment variable VERBOSE from surprising us.
@@ -67,7 +68,7 @@ ifeq ($(filter userprog, $(KERNEL_SUBDIRS)), userprog)
 TESTCMD += -f
 endif
 TESTCMD += $(if $($(TEST)_ARGS),run '$(*F) $($(TEST)_ARGS)',run $(*F))
-TESTCMD += < /dev/null
+TESTCMD += $(if $($(TEST)_INPUT), < $($(TEST)_INPUT), < /dev/null)
 TESTCMD += 2> $(TEST).errors $(if $(VERBOSE),|tee,>) $(TEST).output
 %.output: kernel.bin loader.bin
 	$(TESTCMD)

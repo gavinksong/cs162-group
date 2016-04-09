@@ -89,8 +89,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     uint8_t *buffer = (uint8_t *) args[2];
     size_t i = 0;
     while (i < args[3]) {
-      buffer[i++] = input_getc ();
-      if (buffer[i] == '\n')
+      buffer[i] = input_getc ();
+      if (buffer[i++] == '\n')
         break;
     }
     f->eax = i;
