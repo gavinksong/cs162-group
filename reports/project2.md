@@ -7,7 +7,8 @@ My_test_1:
 
 Description:
 
-  Read from the the stdin and write the message we just read in. the output of write should be the same as the message read takes.         
+  Read from the the stdin and write the message we just read in. the output of write should be the same as the message read takes.  
+  
 Kernel bug: 
   - if the file descriptor is not validated before using it, the file might not be able to be opened or modified or random memory might be accessed.
   - If the buffer size is too large and goes beyond the user stack, kernel memory might be modified and the output of write would be random thing.
