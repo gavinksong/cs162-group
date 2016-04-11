@@ -46,7 +46,6 @@ outputs:: $(OUTPUTS)
 
 $(foreach prog,$(PROGS),$(eval $(prog).output: $(prog)))
 $(foreach test,$(TESTS),$(eval $(test).output: $($(test)_PUTFILES)))
-$(foreach test,$(TESTS),$(eval $(test).output: $($(test)_INPUT)))
 $(foreach test,$(TESTS),$(eval $(test).output: TEST = $(test)))
 
 # Prevent an environment variable VERBOSE from surprising us.

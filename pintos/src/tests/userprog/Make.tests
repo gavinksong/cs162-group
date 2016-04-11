@@ -15,10 +15,10 @@ write-boundary write-zero write-stdin write-bad-fd exec-once exec-arg	\
 exec-multiple exec-missing exec-bad-ptr wait-simple wait-twice		\
 wait-killed wait-bad-pid multi-recurse multi-child-fd rox-simple	\
 rox-child rox-multichild bad-read bad-write bad-read2 bad-write2        \
-bad-jump bad-jump2 iloveos practice echo)
+bad-jump bad-jump2 iloveos practice my-test-1 my-test-2)
 
 tests/userprog_PROGS = $(tests/userprog_TESTS) $(addprefix \
-tests/userprog/,child-simple child-args child-bad child-close child-rox)
+tests/userprog/,child-simple child-args child-bad child-close child-rox create-bad-str)
 
 tests/userprog/iloveos_SRC = tests/userprog/iloveos.c tests/main.c
 tests/userprog/practice_SRC = tests/userprog/practice.c tests/main.c
@@ -100,7 +100,9 @@ tests/userprog/child-bad_SRC = tests/userprog/child-bad.c tests/main.c
 tests/userprog/child-close_SRC = tests/userprog/child-close.c
 tests/userprog/child-rox_SRC = tests/userprog/child-rox.c
 
-tests/userprog/echo_SRC = tests/userprog/echo.c tests/main.c
+tests/userprog/my-test-1_SRC = tests/userprog/my-test-1.c tests/main.c
+tests/userprog/my-test-2_SRC = tests/userprog/my-test-2.c tests/main.c
+tests/userprog/create-bad-str_SRC = tests/userprog/create-bad-str.c tests/main.c
 
 $(foreach prog,$(tests/userprog_PROGS),$(eval $(prog)_SRC += tests/lib.c))
 
@@ -110,7 +112,7 @@ tests/userprog/args-many_ARGS = a b c d e f g h i j k l m n o p q r s t u v
 tests/userprog/args-dbl-space_ARGS = two  spaces!
 tests/userprog/multi-recurse_ARGS = 15
 
-tests/userprog/echo_INPUT = ../../tests/userprog/echo.input
+tests/userprog/my-test-1_INPUT = ../../tests/userprog/my-test-1.input
 
 tests/userprog/open-normal_PUTFILES += tests/userprog/sample.txt
 tests/userprog/open-boundary_PUTFILES += tests/userprog/sample.txt
@@ -137,3 +139,5 @@ tests/userprog/multi-child-fd_PUTFILES += tests/userprog/child-close
 tests/userprog/wait-killed_PUTFILES += tests/userprog/child-bad
 tests/userprog/rox-child_PUTFILES += tests/userprog/child-rox
 tests/userprog/rox-multichild_PUTFILES += tests/userprog/child-rox
+
+tests/userprog/my-test-2_PUTFILES += tests/userprog/create-bad-str
