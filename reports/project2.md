@@ -1,3 +1,23 @@
+Final Report for Project 2: User Programs
+=========================================
+
+Our general strategies were unchanged since we outlined them in our original design.
+However, we did spend less time discussing and documenting the design than on our first project. As a result, we did have to make some small changes/additions to our code, mostly in the way of bug fixes and patching memory leaks.
+
+One major part of our implementation that we didn't outline in our design document was how we were going to validate the pointers that were being passed into syscalls. We ended up using the first method outlined in the spec, making sure that any pointers were referencing non-null, user space, and mapped addresses before handling the syscall.
+
+One of our members, Jacobo Sternberg, had dropped the class. However, he still showed up to group meetings and made an effort to contribute. An upstanding citizen.
+
+All of us were present when we came up with the general design for our project. I (Gavin Song) had arrived late and unprepared for the first meeting, and my teammates did a good job of bringing me up to speed on the project specs. Together, we slowly worked out how to push syscall arguments onto the stack and handle syscalls.
+
+I wrote the first two sections of the design document, and I entrusted Jun Tan to write the entire third section. Naturally, since that left us more capable of implementing the parts of the design we had documented, we went on to implement those sections.
+
+I went on to fix all the remaining bugs and add all of the missing functionality, as well as refactor and polish the code. Jun also contributed a bit here.
+
+Due to unfortunate timing, Shawn Liu was very busy with several midterms and didn't have a lot of time to contribute. However, he did show up to most of the meetings, where he read our code, talked to us, and found some bugs. He also wrote the first test, which was not trivial to implement.
+
+Overall, the project was hard to start, but once everything clicked, it was all smooth sailing.
+
 Student Testing Report
 =========================================
 
@@ -121,6 +141,3 @@ PASS
 It was mentioned before, but despite the simplicity of the first test, we had to modify a line in one of the Makefiles in order to make it work. This was difficult because it involved tracing through the Makefiles and understanding how they set up the tests. Originally, standard input was being redirected to `dev/null` for every test in order to disable normal standard input. We made it so that an input file can be specified, such that standard input would be redirected to it instead of `dev/null`. I guess you could say this was an improvement to the Pintos testing system that we actually decided to implement.
 
 There were also several features that we could not test due to limitations of the Pintos testing system. For example, we considered the possibility of testing for memory leaks when a parent process dies before its child, which we know isn't covered by the current tests. However, since processes cannot communicate except through `wait` or the file system, there is no clean way of writing such a test. Perhaps the Pintos testing system would benefit if the operating system provided more ways that processes could communicate, or if we could somehow invoke some kernel-level powers in our test cases.
-
-Final Report for Project 2: User Programs
-=========================================
