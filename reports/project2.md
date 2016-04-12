@@ -1,6 +1,3 @@
-Final Report for Project 2: User Programs
-=========================================
-
 Student Testing Report
 =========================================
 
@@ -14,8 +11,10 @@ The `write (STDOUT_FILENO, _, _)` syscall already receives coverage implicitly f
 - If the return values were too large, our test case would either output junk characters or cause a page fault.
 - If the read-stdin syscall were otherwise implemented incorrectly, our test case would not print the correct message.
 
+**Note**: line 70 in `tests/Make.tests` was modified to redirect text into the standard input buffer.
+
 ###### my-test-1.output
-```C
+```
 Copying tests/userprog/my-test-1 to scratch partition...
 qemu -hda /tmp/dvHu6kShRr.dsk -m 4 -net none -nographic -monitor null
 PiLo hda1
@@ -50,22 +49,72 @@ Console: 900 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...
+
 ```
 
 ###### my-test-1.result
-```C
-PASS
 ```
- 
-My_test_2: 
+PASS
 
-Description:
+```
 
-  Create a file with file_name goes beyond the user space. Then exec a child process trying to open (some operation) on a different file, say example.txt. 
-  
-  Before the file is created, the file_name is checked if it is mapped and within the user space. The create function should return -1 because the file_name is not valid. If the lock is not released properly when create function fails, the following child process is not able to do any operations on a different file and stays there forever waiting for the lock, which is not supposed to happen. 
+### my-test-2
+This test is two-fold:
+- Calls `exec` and `wait` on an instance of `create-bad-str`, which is another custom test case. This child process calls the `create` syscall with a pointer to a string that *begins* in user memory but *ends* somewhere in kernel memory. This should cause the child process to be killed by the kernel.
+- When the parent resumes processing, it will attempt to `open` the text file `sample.txt`.
 
-Kernel bug:
-  - if the file operations does not check if the passed in file_name is not checked if it is mapped and within the user space, the create function would not cause any error
-  -  
+The second part of the test is to make sure that the syscall is not holding on to any locks when it fails a file system operation. This feature is not explicitly tested for in any of the other tests. It is tested *implicitly* in `multi-oom`, where some of the child processes kill themselves by calling `open` with an invalid pointer. However, seeing as how this line is placed in a random switch, we thought we should create a dedicated test for this feature.
 
+- If the kernel only checks whether the string points to a user address, without verifying that the string also *terminates* at a user address, our test case will...
+- If the syscall is still holding a lock on the file system when it terminates, our test will never finish.
+
+###### my-test-2.output
+```
+Copying tests/userprog/my-test-2 to scratch partition...
+Copying tests/userprog/create-bad-str to scratch partition...
+qemu -hda /tmp/S7iMNqqIeu.dsk -m 4 -net none -nographic -monitor null
+PiLo hda1
+Loading..........
+Kernel command line: -q -f extract run my-test-2
+Pintos booting with 4,088 kB RAM...
+382 pages available in kernel pool.
+382 pages available in user pool.
+Calibrating timer...  111,820,800 loops/s.
+hda: 5,040 sectors (2 MB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 175 sectors (87 kB), Pintos OS kernel (20)
+hda2: 4,096 sectors (2 MB), Pintos file system (21)
+hda3: 200 sectors (100 kB), Pintos scratch (22)
+filesys: using hda2
+scratch: using hda3
+Formatting file system...done.
+Boot complete.
+Extracting ustar archive from scratch device into file system...
+Putting 'my-test-2' into the file system...
+Putting 'create-bad-str' into the file system...
+Erasing ustar archive...
+Executing 'my-test-2':
+(my-test-2) begin
+(create-bad-str) begin
+create-bad-str: exit(-1)
+(my-test-2) end
+my-test-2: exit(0)
+Execution of 'my-test-2' complete.
+Timer: 72 ticks
+Thread: 30 idle ticks, 42 kernel ticks, 1 user ticks
+hda2 (filesys): 139 reads, 406 writes
+hda3 (scratch): 199 reads, 2 writes
+Console: 985 characters output
+Keyboard: 0 keys pressed
+Exception: 0 page faults
+Powering off...
+
+```
+
+###### my-test-2.result
+```
+PASS
+
+```
+
+Final Report for Project 2: User Programs
+=========================================
