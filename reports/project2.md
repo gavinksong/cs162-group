@@ -1,17 +1,61 @@
 Final Report for Project 2: User Programs
 =========================================
 
-Student test repost:
+Student Testing Report
+=========================================
 
-My_test_1:
+### my-test-1
+Tests syscalls for reading from standard input and writing to standard output. Input is read from stdin and then written to stdout. The output should be the same as the input.
 
-Description:
+The `write (STDOUT_FILENO, _, _)` syscall already receives coverage implicitly from other tests through the `msg` function provided in `lib.h`. However, the `read (STDIN_FILENO, _, _)` syscall receives zero coverage and could have been completely omitted from being implemented without failing any of the existing tests.
 
-  Read from the the stdin and write the message we just read in. the output of write should be the same as the message read takes.  
-  
-Kernel bug: 
-  - if the file descriptor is not validated before using it, the file might not be able to be opened or modified or random memory might be accessed.
-  - If the buffer size is too large and goes beyond the user stack, kernel memory might be modified and the output of write would be random thing.
+- If the kernel did not implement the read-stdin syscall, our test case would output nothing and fail the test.
+- If the return values were too small, our test case would output a truncated message and fail the test.
+- If the return values were too large, our test case would either output junk characters or cause a page fault.
+- If the read-stdin syscall were otherwise implemented incorrectly, our test case would not print the correct message.
+
+###### my-test-1.output
+```C
+Copying tests/userprog/my-test-1 to scratch partition...
+qemu -hda /tmp/dvHu6kShRr.dsk -m 4 -net none -nographic -monitor null
+PiLo hda1
+Loading..........
+Kernel command line: -q -f extract run my-test-1
+Pintos booting with 4,088 kB RAM...
+382 pages available in kernel pool.
+382 pages available in user pool.
+Calibrating timer...  104,755,200 loops/s.
+hda: 5,040 sectors (2 MB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 175 sectors (87 kB), Pintos OS kernel (20)
+hda2: 4,096 sectors (2 MB), Pintos file system (21)
+hda3: 101 sectors (50 kB), Pintos scratch (22)
+filesys: using hda2
+scratch: using hda3
+Formatting file system...done.
+Boot complete.
+Extracting ustar archive from scratch device into file system...
+Putting 'my-test-1' into the file system...
+Erasing ustar archive...
+Executing 'my-test-1':
+(my-test-1) begin
+Hello, CS162!
+(my-test-1) end
+my-test-1: exit(0)
+Execution of 'my-test-1' complete.
+Timer: 56 ticks
+Thread: 30 idle ticks, 26 kernel ticks, 0 user ticks
+hda2 (filesys): 61 reads, 206 writes
+hda3 (scratch): 100 reads, 2 writes
+Console: 900 characters output
+Keyboard: 0 keys pressed
+Exception: 0 page faults
+Powering off...
+```
+
+###### my-test-1.result
+```C
+PASS
+```
  
 My_test_2: 
 
