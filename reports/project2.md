@@ -65,7 +65,7 @@ This test is two-fold:
 
 The second part of the test is to make sure that the syscall is not holding on to any locks when it fails a file system operation. This feature is not explicitly tested for in any of the other tests. It is tested *implicitly* in `multi-oom`, where some of the child processes kill themselves by calling `open` with an invalid pointer. However, seeing as how this line is placed in a random switch, we thought we should create a dedicated test for this feature.
 
-- If the kernel only checks whether the string points to a user address, without verifying that the string also *terminates* at a user address, our test case will...
+- If the kernel only checks whether the string begins at a user address, without verifying that the string also *terminates* at a user address, the child process will exit normally, printing the messages "(create-bad-str) end" and "create-bad-str: exit(0)" instead of "create-bad-str: exit(-1)".
 - If the syscall is still holding a lock on the file system when it terminates, our test will never finish.
 
 ###### my-test-2.output
@@ -115,6 +115,12 @@ Powering off...
 PASS
 
 ```
+
+### Our Experiences
+
+It was mentioned before, but despite the simplicity of the first test, we had to modify a line in one of the Makefiles in order to make it work. This was difficult because it involved tracing through the Makefiles and understanding how they set up the tests. Originally, standard input was being redirected to `dev/null` for every test in order to disable normal standard input. We made it so that an input file can be specified, such that standard input would be redirected to it instead of `dev/null`. I guess you could say this was an improvement to the Pintos testing system that we actually decided to implement.
+
+There were also several features that we could not test due to limitations of the Pintos testing system. For example, we considered the possibility of testing for memory leaks when a parent process dies before its child, which we know isn't covered by the current tests. However, since processes cannot communicate except through `wait` or the file system, there is no clean way of writing such a test. Perhaps the Pintos testing system would benefit if the operating system provided more ways that processes could communicate, or if we could somehow invoke some kernel-level powers in our test cases.
 
 Final Report for Project 2: User Programs
 =========================================
