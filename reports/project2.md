@@ -14,7 +14,9 @@ I wrote the first two sections of the design document, and I entrusted Jun Tan t
 
 I went on to fix all the remaining bugs and add all of the missing functionality, as well as refactor and polish the code. Jun also contributed a bit here.
 
-Due to unfortunate timing, Shawn Liu was very busy with several midterms and didn't have a lot of time to contribute. However, he did show up to most of the meetings, where he read our code, talked to us, and found some bugs. He also wrote the first test, which was not trivial to implement.
+Due to unfortunate timing, Shawn Liu was very busy with several midterms and didn't have a lot of time to contribute. However, he did show up to most of the meetings, where he read our code, talked to us, and found some bugs. He also wrote the first test, which was not trivial to implement. Meanwhile, I wrote the second test, and Jun took notes.
+
+I finalized the testing report, and as you can see, I am now writing the final report.
 
 Overall, the project was hard to start, but once everything clicked, it was all smooth sailing.
 
