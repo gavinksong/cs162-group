@@ -16,9 +16,9 @@ Design Document for Project 3: File System
 
 ```C
 struct entry {
-  uint32_t key;       /* Sector index. */
-  uint8_t val;        /* Block index. */
-  uint8_t next;       /* Entry index. */
+  block_sector_t key;       /* Sector index. */
+  uint8_t val;              /* Block index. */
+  uint8_t next;             /* Entry index. */
 }
 
 /* Should occupy exactly 512 bytes of memory */
