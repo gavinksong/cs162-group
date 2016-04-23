@@ -121,7 +121,8 @@ struct inode_disk {
 
 struct thread {
   ...
-  block_sector_t cwd;                 /* The current working directory. */
+#ifdef USERPROG
+  struct inode *cwd;                  /* The current working directory. */
   ...
 };
 ```
@@ -154,7 +155,7 @@ For filesys operations, if we are given a relative path, we will begin traversin
 
 `readdir()`: get the object from the current process's file list. If the oject is a file or does not exist such a directory with the corresponding fd, return -1. Otherwise use the `dir_readdir()` to read the directory.
 
-`isdir()`: use process_get_file to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the inode, use that inode to get the `sector` which points to the struct `inode_disk` and checks the `is_dir` member in there.
+`isdir()`: use `process_get_file ()` to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the inode, use that inode to get the `sector` which points to the struct `inode_disk` and checks the `is_dir` member in there.
 
 `inumber()`:  use process_get_file to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the inode and call `inode_get_inumber (const struct inode *inode)` with it.
 
@@ -166,6 +167,11 @@ For filesys operations, if we are given a relative path, we will begin traversin
 
 ### Synchronization
 
+We decided to disallow removing files or directories for which there is an `inode` with an `open_cnt` larger than 0. Also, we decided to treat each thread as an opener of its current working directory. This prevents current working directories from being deleted. Furthermore, we decided to disallow removing directories that are not empty.
+
+### Rationale
+
+We added a `num_files` member to the `inode_disk` structure in order to provide an easy way to determine whether a directory was empty and safe to remove.
 
 # Additional Question
 1. One way to implement write behind is to have the timer interrupt write dirty blocks to disk every 30 seconds. Each block in the cache would have an associated lock, which the timer interrupt would acquire before writing the block to disk, to prevent user programs from overwriting the data part way through. 
