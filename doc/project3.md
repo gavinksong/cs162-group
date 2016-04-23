@@ -46,3 +46,21 @@ We put a lock on the buffer cache, so that the full set of actions required to "
 
 In `get_cache_block ()`, the "use count" corresponding to the returned block is incremented. We have a separate function `release_cache_block ()` for decrementing this value, as well as signalling `cache_queue` if this causes the count to hit zero. The purpose of the use count is to ensure that the block is not evicted from the cache before the kernel is done with it, while still allowing other threads to access the cache block simulataneously.
 
+# Task 2: Entensible Files
+```C
+struct inode_disk {
+  block_sector_t parent_dir;
+  block_sector_t direct[];
+  block_sector_t indirect;
+  block_sector_t doubly_indirect;
+  off_t length;
+  bool is_dir;
+  unsigned magic; // magic is in a different place, 
+  uint8_t unused[3];
+};
+```
+
+### Algorithms
+Whenever a file or a directory is created, free_map_allocate will allocate blocks for a given length. If the last block allocated is not fully occupied, still allocate that block. 
+Inside the inode_write_at function, if the size of the data to be written cannot fit in the blocks have been allocated, then use the free_map_allocate to allocate blocks for the excessive data. Because free_map_allocate allocates a chunk of consecutive blocks, it may happens to be that all the consecutive blocks are too small to hold all the excessive data and free_map_allocate fails. In this case, use free_map_allocate to allocate one block at a time. 
+
