@@ -109,42 +109,59 @@ We packed `inode_disk` with direct pointers to maximize the benefit of faster ac
 
 ### Data Structures and Functions
 
+###### node.c
+
 ```C
 struct inode_disk {
-  block_sector_t parent_dir;      /* The sector of the parent direcotry. */
-  bool is_dir;                    /* true if the inode holds a directory. */
-  uint32_t num_files;             /* count the number of subdirectories or files. */
+  block_sector_t parent_dir;          /* inode_disk sector of the parent directory. */
+  bool is_dir;                        /* True if this file is a directory. */
+  uint32_t num_files;                 /* The number of subdirectories or files. */
   ...
 };
 
 struct thread {
   ...
-  block_sector_t cwd;             /* the current working directory. */
+  block_sector_t cwd;                 /* The current working directory. */
   ...
 };
+```
 
-struct fnode {
-  ...
-  struct dir *dir;                /* directory object. */
-  ...
-}
+###### inode.h
 
-bool valid_path(const char *path);     /* use to check if the path is valid. */
-bool exist_dir(const chat *dir);     /* use to check if the dir already exists. */
+```C
+/* Added a third parameter. */
+bool inode_create (block_sector_t, off_t, bool is_dir);
+```
+
+###### filesys.h
+
+```C
+/* Added a fourth parameter. */
+bool filesys_create (const char *name, off_t initial_size, bool is_dir);
 ```
 
 ### Algorithms
-At startup, set everything process's `cwd` to be `ROOT_DIR_SECTOR`. We are going to use the provided `get_next_part()` function to parse out the path. 
-`is_dir` and `parent_dir` are initialized when the directory is created. `filesys_create()` takes in a forth parameter, `bool isDir`, which tells the object is being created is a directory or not. `inode_create()` takes in a third paramenter also, `bool isDir`, and assign this value the the `is_dir` member of the `inode_disk` struct. 
-Because we do not create directories in the root directory anymore, `filesys_create()` will get the current woring directory of the running process and `dir_add()` take the current working directory as the parameter.
-If the path begins with ".", then use the `dir_lookup()` to look for the entry with the corresponding name. If the path begins with "..", then get the parent directory and use 'dir_lookup()' to look for the entry with the corresponding name.
-`chdir()`: check if the path provided is valid first, return -1 if it is not valid, otherwise change the `cwd` member of the running process to the provided path.
+
+At startup, set every process's `cwd` to be `ROOT_DIR_SECTOR`. We are going to use the provided `get_next_part()` function to parse out the path.
+
+`is_dir` and `parent_dir` are initialized when the directory is created. `filesys_create()` and `inode_create()` each take an additional parameter `is_dir`, which is true if the file being created is a directory. This is to correctly set the `is_dir` member of the `inode_disk` structure on creation.
+
+For filesys operations, if we are given a relative path, we will begin traversing at the current process' `cwd` instead of the root directory. We repeatedly use `lookup` and `get_next_part ()` to follow the path. When we encounter a `..` in the path, then we traverse to the parent directory, whose location is stored in the `parent_dir` member of `inode_disk`. If a file can not be found or if one of the files in the middle of the path is not a directory, then the file operation fails.
+
+`chdir()`: traverse the given path, then set the `cwd` of the current process to its destination.
+
 `mkdir()`: If the directory trying to created already exists or the parent directory of the directory trying to be created does not already exist, return -1. Otherwise, use `filesys_create()` to create the directory with the parameter isDir = True. And increments the `num_files` of the parent directory
+
 `readdir()`: get the object from the current process's file list. If the oject is a file or does not exist such a directory with the corresponding fd, return -1. Otherwise use the `dir_readdir()` to read the directory.
+
 `isdir()`: use process_get_file to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the inode, use that inode to get the `sector` which points to the struct `inode_disk` and checks the `is_dir` member in there.
+
 `inumber()`:  use process_get_file to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the inode and call `inode_get_inumber (const struct inode *inode)` with it.
+
 `open()`: if the object being opened is a directory, add the object to the file_list and change the `file` member of the `fnode` to null and `dir` member to the directory object.
+
 `close()`: if the fd is corresponding to a direcotry, do not do anything.
+
 `remove()`: use process_get_file to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the `dir` member, which contains a `inode`. Use the `inode` to get the `sector` of the inode_disk which tells us the 'num_files'. If the `num_files` is 0, call `dir_remove()`. Otherwise, removement should not be performed.
 
 ### Synchronization
