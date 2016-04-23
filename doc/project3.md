@@ -17,10 +17,10 @@ Design Document for Project 3: File System
 void *cache_base;                 /* Points to the base of the buffer cache. */
 size_t clock_hand;                /* Used for clock replacement. */
 struct bitmap *refbits;           /* Reference bits for clock replacement. */
-struct bitmap *usebits;           /* Marked if cache entry is being actively modified. */
 struct keyval *hash_table[64];    /* Maps sector indices to cache entries. */
 struct lock cache_lock;           /* Acquire before accessing cache metadata. */
 struct cond cache_queue;          /* Block when all cache entries are in use. */
+uint32_t use_cnt[64];             /* Number of processes that are "using" each entry. */
 
 struct keyval {
   uint32_t key,
@@ -38,4 +38,11 @@ We will allocate 8 contiguous pages of memory to the buffer cache, using `palloc
 
 We will use a hashmap to map sectors to entries in the buffer cache. We will use the six least significant bits in the sector index for the hash.
 
-`get_cache_block ()` starts by acquiring the `cache_lock` and then looking up the sector in the hash table. If the sector cannot be found in the hash table, we will use the clock algorithm to select a block for eviction. Our clock algorithm will ignore blocks that are currently "in use" (which are tracked in `usebits`). If there are currently no blocks that are not "in use", we will wait in the `cache_queue` instead of running the clock algorithm. When the thread unblocks, it repeats from the step following acquiring `cache_lock`.
+`get_cache_block ()` starts by acquiring the `cache_lock` and then looking up the sector in the hash table. If the sector cannot be found in the hash table, we will use the clock algorithm to select a block for eviction. Our clock algorithm will ignore blocks that are currently "in use" (which are tracked by `use_cnt`). If there are currently no blocks that are not "in use", we will wait in the `cache_queue` instead of running the clock algorithm. When the thread unblocks, it repeats from the step following acquiring `cache_lock`.
+
+### Synchronization
+
+We put a lock on the buffer cache, so that the full set of actions required to "get" or "release" a cache block has to finish before moving on to the next set of actions. This is necessary because there are many gaps between when the metadata is read and when it is updated. For example, when a block is found in the hash table, we expect it to not be evicted before we update the use bit and the ref bit. Conversely, when a block is not found in the hash table, we expect it not to be added to the cache before we add it to the cache ourselves, and we expect the metadata to reflect that.
+
+In `get_cache_block ()`, the "use count" corresponding to the returned block is incremented. We have a separate function `release_cache_block ()` for decrementing this value, as well as signalling `cache_queue` if this causes the count to hit zero. The purpose of the use count is to ensure that the block is not evicted from the cache before the kernel is done with it, while still allowing other threads to access the cache block simulataneously.
+
