@@ -12,19 +12,21 @@ Design Document for Project 3: File System
 
 ### Data Structures and Functions
 
-###### In inode.c
-
 ```C
-struct entry {
-  block_sector_t key;       /* Sector index. */
-  uint8_t val;              /* Block index. */
-  uint8_t next;             /* Entry index. */
-}
+/* Buffer Cache */
+void *cache_base;                 /* Points to the base of the buffer cache. */
+size_t clock_hand;                /* Used for clock page replacement. */
+struct bitmap *refbits;           /* Reference bits for page replacement. */
+struct bitmap *usebits;           /* Marked if cache entry is being actively modified. */
+struct keyval *hash_table[64];    /* Maps sector indices to cache entries. */
+struct lock cache_lock;           /* Acquire before accessing cache metadata. */
+struct cond cache_queue;          /* Block when all cache entries are in use. */
 
-/* Should occupy exactly 512 bytes of memory */
-struct cache_metadata {
-  entry[63] entries;
-  char[122] buckets;
-  struct bitmap refbits;
+struct keyval {
+  uint32_t key,
+  uint32_t val,
+  struct keyval *next,
 }
 ```
+
+
