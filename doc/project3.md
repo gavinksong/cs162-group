@@ -75,3 +75,17 @@ Remove the "data" member from the inode struct and use the "sector" member to ke
 In this section, there should not be any synchronization issue because task 1 takes care all of that
 
 ### Rationale
+
+# Task 3: Subdirectories
+
+### Data Structures and Functions
+
+```C
+struct inode_disk {
+  block_sector_t parent_dir;      /* The sector . */
+  bool is_dir;                      
+  ...
+};
+```
+
+### Algorithms
