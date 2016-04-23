@@ -148,3 +148,9 @@ If the path begins with ".", then use the `dir_lookup()` to look for the entry w
 `remove()`: use process_get_file to get the object. If the object is not a dir or NULL, return -1. Otherwise, use the object to get the `dir` member, which contains a `inode`. Use the `inode` to get the `sector` of the inode_disk which tells us the 'num_files'. If the `num_files` is 0, call `dir_remove()`. Otherwise, removement should not be performed.
 
 ### Synchronization
+
+
+# Additional Question
+1. One way to implement write behind is to have the timer interrupt write dirty blocks to disk every 30 seconds. Each block in the cache would have an associated lock, which the timer interrupt would acquire before writing the block to disk, to prevent user programs from overwriting the data part way through. 
+
+One way to implement read ahead is to use ide.c found in the devices folder. Create a list called read_ahead in the kernel that contains pointers to the blocks to be read in the future. Inode_read will populate this list whenever the length of text left to read is greater than the size of the current block it is reading. Then, in the interrupt_handler in ide.c, check the read_ahead list, and load the blocks into the cache buffer.  This way, future blocks can be read into the cache buffer asynchronously.
