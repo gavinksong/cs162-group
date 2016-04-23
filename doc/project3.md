@@ -51,3 +51,27 @@ In `get_cache_block ()`, the "use count" corresponding to the returned block is 
 We use a simple hashmap to improve lookup speeds. We use the six least significant bytes of the sector index to avoid collisions due to spatial locality. It's also slightly faster using a masking operation. We have 64 entries in the hash table because it is a power of two and gives us a load factor of 1... which is probably good enough.
 
 Every entry in the hash table is a linked list of key-value pairs. However, we don't use the linked list implementation provided by Pintos - for three reasons. One, we don't expect these lists to be very long. In fact, we expect them to contain one entry on average. Yet, every Pintos linked list has a head and a tail node, and that would make each list several times larger than necessary. Two, a `list_elem` needs to be embedded inside of another struct in order to be associated with actual data. Since we would have to create a separate struct anyways, it makes little sense to include a `list_elem` when we could accomplish the same thing with a pointer to the next key-value pair. And finally, three, we only need to be able to traverse the list forwards, one element at a time, so we have no need for the additional functionality provided by `list.h`.
+
+# Task 2: Entensible Files
+```C
+struct inode_disk {
+  block_sector_t parent_dir;         /* Task 3. */
+  block_sector_t direct[122];        
+  block_sector_t indirect;
+  block_sector_t doubly_indirect;
+  off_t length;                      
+  bool is_dir;
+  unsigned magic; // magic is in a different place, 
+  uint8_t unused[3];
+};
+```
+
+### Algorithms
+Whenever a file or a directory is created, free_map_allocate will allocate blocks for a given length. If the last block allocated is not fully occupied, still allocate that block. 
+Inside the inode_write_at function, if the size of the data to be written cannot fit in the blocks have been allocated, then use the free_map_allocate to allocate blocks for the excessive data. Because free_map_allocate allocates a chunk of consecutive blocks, it may happens to be that all the consecutive blocks are too small to hold all the excessive data and free_map_allocate fails. In this case, use free_map_allocate to allocate one block at a time. 
+Remove the "data" member from the inode struct and use the "sector" member to keep track of the inode_disk instead. Thus byte_to_sector and inode_length function should be modified to adapt to this change.
+
+### Synchronization
+In this section, there should not be any synchronization issue because task 1 takes care all of that
+
+### Rationale
