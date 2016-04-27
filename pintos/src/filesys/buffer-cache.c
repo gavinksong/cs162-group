@@ -34,8 +34,10 @@ buffer_cache_init (void)
   cache_base = palloc_get_multiple (PAL_ASSERT, 8);
   clock_hand = 0;
   refbits = bitmap_create (NUM_SECTORS);
+  usebits = bitmap_create (NUM_SECTORS);
   hash_init (&hashmap, hash_function, less_function, NULL);
   lock_init (&cache_lock);
+  cond_init (&cache_queue);
 }
 
 void *
