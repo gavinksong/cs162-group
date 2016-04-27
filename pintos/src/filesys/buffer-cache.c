@@ -110,6 +110,25 @@ buffer_cache_release (void *cache_block)
   lock_release (&cache_lock);
 }
 
+/* Reads SECTOR into BUFFER. */
+void
+buffer_cache_read (block_sector_t sector, void *buffer)
+{
+  void *cache_block = buffer_cache_get (inode->sector);
+  memcpy (buffer, cache_block, BLOCK_SECTOR_SIZE);
+  buffer_cache_release (cache_block);
+}
+
+/* Writes BLOCK_SECTOR_SIZE bytes from BUFFER into the
+   cache block holding SECTOR. */
+void
+buffer_cache_write (block_sector_t sector, void *buffer)
+{
+  void *cache_block = buffer_cache_get (inode->sector);
+  memcpy (cache_block, buffer, BLOCK_SECTOR_SIZE);
+  buffer_cache_release (cache_block);
+}
+
 /* Returns a pointer to the (INDEX + 1)th cache block. */
 static void *
 index_to_block (size_t index) {
