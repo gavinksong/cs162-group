@@ -4,7 +4,7 @@
 #include "devices/block.h"
 
 void buffer_cache_init (void);
-void *get_cache_block (block_sector_t sector);
-void release_cache_block (void *cache_block);
+void *buffer_cache_get (block_sector_t sector);
+void buffer_cache_release (void *cache_block);
 
 #endif /* filesys/buffer-cache.h */

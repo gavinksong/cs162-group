@@ -1,6 +1,7 @@
 #include "filesys/buffer-cache.h"
 #include <bitmap.h>
 #include <hash.h>
+#include "filesys/filesys.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/synch.h"
@@ -11,12 +12,12 @@ static void *cache_base;                        /* Points to the base of the buf
 static size_t clock_hand;                       /* Used for clock replacement. */
 static struct entry *entries[NUM_SECTORS];      /* Array of cache entry refs. */
 static struct bitmap *refbits;                  /* Reference bits for clock replacement. */
-static struct bitmap *usebits;                  /* Marked for each lockd entry. */
+static struct bitmap *usebits;                  /* Marked for each locked entry. */
 static struct hash hashmap;                     /* Maps sector indices to cache entries. */
 static struct lock cache_lock;                  /* Acquire before accessing cache metadata. */
 static struct condition cache_queue;            /* Block if all cache entries are in use. */
 
-static void clock_algorithm (struct entry *e);
+static void *index_to_block (size_t index);
 unsigned hash_function (const struct hash_elem *e, void *aux);
 bool less_function (const struct hash_elem *a, const struct hash_elem *b, void *aux);
 
@@ -28,6 +29,7 @@ struct entry
     struct hash_elem elem;
   };
 
+/* Initializes the buffer cache. */
 void
 buffer_cache_init (void) 
 {
@@ -40,8 +42,12 @@ buffer_cache_init (void)
   cond_init (&cache_queue);
 }
 
+/* Checks if SECTOR is in the buffer cache, and if it is not,
+   loads SECTOR into a cache block. Locks the corresponding
+   cache entry until buffer_cache_release () is called.
+   Returns the cache block containing the data from SECTOR. */
 void *
-get_cache_block (block_sector_t sector)
+buffer_cache_get (block_sector_t sector)
 {
   struct entry *e = malloc (sizeof (struct entry));
   e->sector = sector;
@@ -54,7 +60,21 @@ get_cache_block (block_sector_t sector)
   struct hash_elem *found = hash_insert (&hashmap, &e->elem);
   if (found == NULL) {
     lock_init (&e->lock);
-    clock_algorithm (e);
+
+    while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
+      bitmap_reset (refbits, clock_hand);
+      clock_hand = (clock_hand + 1) % NUM_SECTORS;
+    }
+
+    struct entry *old_entry = entries[clock_hand];
+    if (old_entry != NULL) {
+      block_write (fs_device, old_entry->sector, index_to_block (old_entry->index));
+      free (old_entry);
+    }
+
+    e->index = clock_hand;
+    entries[e->index] = e;
+    clock_hand = (clock_hand + 1) % NUM_SECTORS;
   }
   else {
     free (e);
@@ -63,13 +83,17 @@ get_cache_block (block_sector_t sector)
 
   lock_acquire (&e->lock);
   bitmap_mark (usebits, e->index);
+  block_read (fs_device, e->sector, index_to_block (e->index));
+
   lock_release (&cache_lock);
 
-  return cache_base + BLOCK_SECTOR_SIZE * e->index;
+  return index_to_block (e->index);
 }
 
+/* Releases the lock on the cache entry associated with
+   the block at CACHE_BLOCK. */
 void
-release_cache_block (void *cache_block)
+buffer_cache_release (void *cache_block)
 {
   int index = (cache_block - cache_base) / BLOCK_SECTOR_SIZE;
 
@@ -86,17 +110,10 @@ release_cache_block (void *cache_block)
   lock_release (&cache_lock);
 }
 
-static void
-clock_algorithm (struct entry *e)
-{
-  while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
-    bitmap_reset (refbits, clock_hand);
-    clock_hand = (clock_hand + 1) % NUM_SECTORS;
-  }
-
-  entries[clock_hand] = e;
-  e->index = clock_hand;
-  clock_hand = (clock_hand + 1) % NUM_SECTORS;
+/* Returns a pointer to the (INDEX + 1)th cache block. */
+static void *
+index_to_block (size_t index) {
+  return cache_base + BLOCK_SECTOR_SIZE * index;
 }
 
 unsigned
