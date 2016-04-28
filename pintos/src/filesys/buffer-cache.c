@@ -110,6 +110,9 @@ buffer_cache_release (void *cache_block)
   lock_release (&cache_lock);
 }
 
+/* Releases the entry associated with the block at *CACHE_BLOCK.
+   Then, stores pointer to cache block holding data from SECTOR in
+   *CACHE_BLOCK. */
 void
 buffer_cache_switch (block_sector_t sector, void **cache_block)
 {
