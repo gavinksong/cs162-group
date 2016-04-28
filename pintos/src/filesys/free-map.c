@@ -4,9 +4,11 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
+#include "threads/synch.h"
 
 static struct file *free_map_file;   /* Free map file. */
 static struct bitmap *free_map;      /* Free map, one bit per sector. */
+static struct lock free_map_lock;   /* Lock for free map operations. */
 
 /* Initializes the free map. */
 void
@@ -17,6 +19,7 @@ free_map_init (void)
     PANIC ("bitmap creation failed--file system device is too large");
   bitmap_mark (free_map, FREE_MAP_SECTOR);
   bitmap_mark (free_map, ROOT_DIR_SECTOR);
+  lock_init (&free_map_lock);
 }
 
 /* Allocates CNT consecutive sectors from the free map and stores

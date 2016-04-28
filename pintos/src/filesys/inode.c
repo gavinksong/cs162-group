@@ -11,14 +11,21 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
+#define NUM_DIRECT 122
+#define NUM_PTRS 128
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    block_sector_t direct[NUM_DIRECT];    /* Direct pointers. */
+    block_sector_t indirect;              /* Indirect pointer. */
+    block_sector_t doubly_indirect;       /* Doubly indirect pointer. */
+    block_sector_t parent_dir;            /* inode_disk sector of the parent directory. */
+    bool is_dir;                          /* True if this file is a directory. */
+    off_t length;                         /* File size in bytes. */
+    unsigned magic;                       /* Note: magic has a different offset now. */
+    uint8_t unused[3];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -37,7 +44,6 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
   };
 
 /* Returns the block device sector that contains byte offset POS
@@ -48,10 +54,34 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
+
+  struct inode_disk *data = buffer_cache_get (inode->sector);
+  block_sector_t *current = (block_sector_t *) data;
+  block_sector_t retval = -1;
+  
+  if (pos < data->length) {
+    size_t i = pos / BLOCK_SECTOR_SIZE;
+  
+    if (i >= NUM_DIRECT) {
+      i -= NUM_DIRECT;
+
+      if (i >= NUM_PTRS) {
+        i -= NUM_PTRS;
+        buffer_cache_switch (data->doubly_indirect, (void **) &current);
+
+        size_t j = i / NUM_PTRS;
+        i -= j * NUM_PTRS;
+        buffer_cache_switch (current[j], (void **) &current);
+      }
+      else
+        buffer_cache_switch (data->indirect, (void **) &current);
+    }
+
+    retval = current[i];
+    buffer_cache_release (current);
+  }
+  
+  return retval;
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -99,7 +129,7 @@ inode_create (block_sector_t sector, off_t length)
               for (i = 0; i < sectors; i++) 
                 buffer_cache_write (disk_inode->start + i, zeros);
             }
-          success = true; 
+          success = true;
         } 
       free (disk_inode);
     }
@@ -138,7 +168,6 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  buffer_cache_read (inode->sector, &inode->data);
   return inode;
 }
 
@@ -267,7 +296,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
       /* Load sector into cache, then partially copy into caller's buffer. */
       void *cache_block = buffer_cache_get (sector_idx);
-      memcpy (cache_block + sector_ofs, buffer + bytes_read, chunk_size);
+      memcpy (cache_block + sector_ofs, buffer + bytes_written, chunk_size);
       buffer_cache_release (cache_block);
 
       /* Advance. */
@@ -303,5 +332,8 @@ inode_allow_write (struct inode *inode)
 off_t
 inode_length (const struct inode *inode)
 {
-  return inode->data.length;
+  struct inode_disk *data = buffer_cache_get (inode->sector);
+  off_t length = data->length;
+  buffer_cache_release (data);
+  return length;
 }

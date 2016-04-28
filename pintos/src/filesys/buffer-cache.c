@@ -110,6 +110,13 @@ buffer_cache_release (void *cache_block)
   lock_release (&cache_lock);
 }
 
+void
+buffer_cache_switch (block_sector_t sector, void **cache_block)
+{
+  buffer_cache_release (*cache_block);
+  *cache_block = buffer_cache_get (sector);
+}
+
 /* Reads SECTOR into BUFFER. */
 void
 buffer_cache_read (block_sector_t sector, void *buffer)
