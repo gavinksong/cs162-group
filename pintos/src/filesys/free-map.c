@@ -45,12 +45,12 @@ free_map_allocate (size_t cnt, block_sector_t *sectorp)
   return sector != BITMAP_ERROR;
 }
 
-/* Allocates CNT consecutive sectors from the free map and stores
+/* Allocates CNT nonconsecutive sectors from the free map and stores
    the first into *SECTORP.
-   Returns true if successful, false if not enough consecutive
-   sectors were available. */
+   Returns true if successful, false if not enough sectors were
+   available. */
 bool
-free_map_allocate_nc (size_t cnt, block_sector_t *sectorp)
+free_map_allocate_nc (size_t cnt, block_sector_t *sectors)
 {
   bool success = false;
   lock_acquire (free_map_lock);
@@ -59,7 +59,7 @@ free_map_allocate_nc (size_t cnt, block_sector_t *sectorp)
     size_t pos = 0;
     for (; i < cnt; i++) {
       pos = bitmap_scan_and_flip (free_map, pos, 1, false);
-      sectorp[i] = pos++;
+      sectors[i] = pos++;
     }
     if (free_map_file != NULL)
       bitmap_write (free_map, free_map_file))
@@ -67,6 +67,19 @@ free_map_allocate_nc (size_t cnt, block_sector_t *sectorp)
   }
   lock_release (free_map_lock);
   return success;
+}
+
+void
+free_map_release_nc (block_sector_t *sectors, size_t cnt)
+{
+  ASSERT (bitmap_all (free_map, sector, cnt));
+  lock_acquire (free_map_lock);
+  size_t i = 0;
+  for (; i < cnt; i++) {
+    bitmap_reset (free_map, sectors[i]);
+  }
+  bitmap_write (free_map, free_map_file);
+  lock_release (free_map_lock);
 }
 
 /* Makes CNT sectors starting at SECTOR available for use. */
