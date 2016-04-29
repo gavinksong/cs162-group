@@ -12,7 +12,8 @@
 #define INODE_MAGIC 0x494e4f44
 
 #define NUM_DIRECT 122
-#define NUM_PTRS 128
+#define NUM_INDIRECT 128
+#define MAX_LENGTH 8388608
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
@@ -46,6 +47,75 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
   };
 
+/* Extends the length of an inode to the given length.
+   Allocates new sectors as needed.
+   TODO: either roll back on failure or use some sort of external lock on freemap. */
+static void
+extend_inode_length (const struct inode *inode, off_t length)
+{
+  ASSERT (inode != NULL);
+  ASSERT (length <= MAX_LENGTH);
+
+  struct inode_disk *data = buffer_cache_get (inode->sector);
+  size_t start = bytes_to_sectors (inode->length);
+  size_t end = bytes_to_sectors (length);
+
+  size_t min_end;
+  block_sector_t *sectors;
+
+  if (start < NUM_DIRECT) {
+    goto direct;
+  }
+  else if (start < NUM_DIRECT + NUM_INDIRECT) {
+    start -= NUM_DIRECT;
+    end -= NUM_DIRECT;
+    goto indirect;
+  }
+  else {
+    start -= NUM_DIRECT - NUM_INDIRECT;
+    end -= NUM_DIRECT - NUM_INDIRECT;
+    goto doubly_indirect;
+  }
+
+direct:
+  min_end = end < NUM_DIRECT ? end : NUM_DIRECT;
+  free_map_allocate_nc (min_end - start, &data->direct[start]);
+  start = 0;
+  end -= NUM_DIRECT;
+  if (end <= 0)
+    goto done;
+
+  free_map_allocate (1, &data->indirect);
+
+indirect:
+  min_end = end < NUM_INDIRECT ? end : NUM_INDIRECT;
+  sectors = buffer_cache_get (data->indirect);
+  free_map_allocate_nc (min_end - start, sectors[start]);
+  buffer_cache_release (sectors);
+  start = 0;
+  end -= NUM_INDIRECT;
+  if (end <= 0)
+    goto done;
+
+  free_map_allocate (1, &data->doubly_indirect)
+
+doubly_indirect:
+  block_sector_t *indirects = buffer_cache_get (data->doubly_indirect);
+  while (end > 0) {
+    min_end = end < NUM_INDIRECT ? end : NUM_INDIRECT;
+    sectors = buffer_cache_get (indirects);
+    free_map_allocate_nc (min_end - start, sectors[start]);
+    start = 0;
+    end -= NUM_INDIRECT;
+    buffer_cache_release (sectors);
+  }
+  buffer_cache_release (indirects);
+
+done:
+  data->length = length;
+  buffer_cache_release (data);
+}
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
@@ -64,14 +134,10 @@ byte_to_sector (const struct inode *inode, off_t pos)
   
     if (i >= NUM_DIRECT) {
       i -= NUM_DIRECT;
-
-      if (i >= NUM_PTRS) {
-        i -= NUM_PTRS;
+      if (i >= NUM_INDIRECT) {
+        i = i % NUM_INDIRECT;
         buffer_cache_switch (data->doubly_indirect, (void **) &current);
-
-        size_t j = i / NUM_PTRS;
-        i -= j * NUM_PTRS;
-        buffer_cache_switch (current[j], (void **) &current);
+        buffer_cache_switch (current[i / NUM_INDIRECT - 1], (void **) &current);
       }
       else
         buffer_cache_switch (data->indirect, (void **) &current);
