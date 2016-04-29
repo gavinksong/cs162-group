@@ -1,6 +1,7 @@
 #include "filesys/buffer-cache.h"
 #include <bitmap.h>
 #include <hash.h>
+#include <string.h>
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
@@ -124,7 +125,7 @@ buffer_cache_switch (block_sector_t sector, void **cache_block)
 void
 buffer_cache_read (block_sector_t sector, void *buffer)
 {
-  void *cache_block = buffer_cache_get (inode->sector);
+  void *cache_block = buffer_cache_get (sector);
   memcpy (buffer, cache_block, BLOCK_SECTOR_SIZE);
   buffer_cache_release (cache_block);
 }
@@ -134,7 +135,7 @@ buffer_cache_read (block_sector_t sector, void *buffer)
 void
 buffer_cache_write (block_sector_t sector, void *buffer)
 {
-  void *cache_block = buffer_cache_get (inode->sector);
+  void *cache_block = buffer_cache_get (sector);
   memcpy (cache_block, buffer, BLOCK_SECTOR_SIZE);
   buffer_cache_release (cache_block);
 }
