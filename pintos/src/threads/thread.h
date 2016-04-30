@@ -113,6 +113,7 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct pnode *pnode;                /* Process identifier. */
     struct list children;               /* List of children processes. */
+    struct inode *cwd;                  /* The current working directory. */
     
     /* Owned by userprog/syscall.c. */
     struct list file_list;              /* Basically a file table. */

@@ -15,10 +15,15 @@
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    block_sector_t direct[NUM_DIRECT];    /* Direct pointers. */
+    block_sector_t indirect;              /* Indirect pointer. */
+    block_sector_t doubly_indirect;       /* Doubly indirect pointer. */
+    block_sector_t parent_dir;            /* inode_disk sector of the parent directory. */
+    uint32_t num_files;                 /* The number of subdirectories or files. */
+    bool is_dir;                          /* True if this file is a directory. */
+    off_t length;                         /* File size in bytes. */
+    unsigned magic;                       /* Note: magic has a different offset now. */
+    uint8_t unused[3];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE

@@ -11,6 +11,8 @@
 struct block *fs_device;
 
 static void do_format (void);
+static int get_next_part (char part[NAME_MAX + 1], const char **srcp);
+static bool follow_path (const char *path, struct inode **);
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -89,6 +91,8 @@ filesys_remove (const char *name)
 
   return success;
 }
+
+
 
 /* Formats the file system. */
 static void
@@ -100,4 +104,60 @@ do_format (void)
     PANIC ("root directory creation failed");
   free_map_close ();
   printf ("done.\n");
+}
+
+/* Stores the inode corresponding to the path within INODE. 
+   Returns false if the path is invalid. */
+static bool 
+follow_path (const char *path, struct inode **inode)
+{
+  char *part = malloc(sizeof(char) * (NAME_MAX + 1 ));
+  struct inode *start_inode;
+  int read = get_next_part (part, &path);
+  //bool lookup;
+  if (read == -1)
+    return false;
+  if(read == 1 && strcmp(part, "..") == 0) {
+    struct inode *cur_inode = thread_current ()->cwd;
+    struct inode_disk *cur_disk = buffer_cache_get (cur_inode->sector);
+    block_sector_t parent_sector = cur_disk->parent_sector;
+    start_inode = inode_open (parent_sector);
+  } else if (read == 1 && strcmp(part, "/")  == 0) {
+    start_inode = dir_get_inode (dir_open_root());
+  } else {
+    start_inode = thread_current ()->cwd;
+  }
+  while ((read = get_next_part(part, &path)) > 0)
+  {
+    bool lookup = dir_lookup(dir_open(start_inode), part, inode);
+    if(!lookup)
+      return false;
+    start_inode = *inode;
+  }
+  if (read == -1) 
+      return false;
+  return true;
+}
+
+static int
+get_next_part (char part[NAME_MAX + 1], const char **srcp) {
+  const char *src = *srcp;
+  char *dst = part;
+  /* Skip leading slashes. If it’s all slashes, we’re done. */
+  while (*src == '/')
+    src++;
+  if (*src == '\0')
+    return 0;
+  /* Copy up to NAME_MAX character from SRC to DST. Add null terminator. */
+  while (*src != '/' && *src != '\0') {
+    if (dst < part + NAME_MAX)
+    *dst++ = *src;
+    else
+    return -1;
+    src++;
+  }
+  *dst = '\0';
+  /* Advance source pointer. */
+  *srcp = src;
+  return 1;
 }
