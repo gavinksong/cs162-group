@@ -26,5 +26,6 @@ void increment_file_cnt(struct inode_disk *);
 void decrement_file_cnt(struct inode_disk *);
 uint32_t inode_get_file_cnt(struct inode *);
 block_sector_t inode_get_parentsector(struct inode *inode);
+struct inode *inode_malloc(void);
 
 #endif /* filesys/inode.h */

@@ -336,6 +336,11 @@ inode_get_file_cnt(struct inode *inode) {
   return disk_inode->num_files;
 }
 
+struct inode *
+inode_malloc(void) {
+  return (struct inode*)malloc(sizeof(struct inode));
+}
+
 static bool
 allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)

@@ -125,8 +125,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if(args[0] == SYS_MKDIR)
       f->eax = filesys_create((char *) args[1], 0, true);
     else if(args[0] == SYS_CHDIR) {
-      struct inode *save_inode;
-      //save_inode = (struct inode *) malloc(sizeof(struct inode));
+      struct inode *save_inode = inode_malloc();//save_inode = (struct inode *) malloc(sizeof(struct inode));
       f->eax = filesys_chdir((char *) args[1], &save_inode);
       if(f->eax)
         thread_current()->cwd = save_inode;

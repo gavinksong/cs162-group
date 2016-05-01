@@ -14,6 +14,7 @@ struct block *fs_device;
 static void do_format (void);
 static int get_next_part (char part[NAME_MAX + 1], const char **srcp);
 static bool follow_path (const char *path, struct inode **);
+static struct dir* get_parent_dir(const char *path);
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -49,11 +50,16 @@ bool
 filesys_create (const char *name, off_t initial_size, bool is_dir) 
 {
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = get_parent_dir(name);
+  char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
+  int read;
+  while ((read = get_next_part (filename, &name)) > 0) {
+  }
+
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, is_dir)
-                  && dir_add (dir, name, inode_sector));
+                  && dir_add (dir, filename, inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
@@ -69,7 +75,7 @@ filesys_create (const char *name, off_t initial_size, bool is_dir)
 struct file *
 filesys_open (const char *name)
 {
-  struct inode *save_inode;// = (struct inode *) malloc(sizeof(struct inode));
+  struct inode *save_inode = inode_malloc();
   bool success = follow_path(name, &save_inode);
   struct inode_disk *parent_disk = inode_get_parentdisk(save_inode);
   
@@ -93,8 +99,7 @@ bool
 filesys_remove (const char *name) 
 {
   struct dir *dir;
-  struct inode *save_inode;
-  //= (struct inode *) malloc(sizeof(struct inode));
+  struct inode *save_inode = inode_malloc();
   bool success = follow_path(name, &save_inode);
   char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
   struct inode_disk *parent_disk = inode_get_parentdisk(save_inode);
@@ -107,11 +112,13 @@ filesys_remove (const char *name)
   if (success && read == 0 &&
       ((inode_get_isdir (save_inode) && inode_get_sector(save_inode) != ROOT_DIR_SECTOR 
         && inode_get_file_cnt(save_inode) == 0) 
-      || !inode_get_isdir(save_inode)))
+      || !inode_get_isdir(save_inode))){
     success = dir_remove(dir, filename);
+    dir_close(dir);
+  }
   else
     success = false;
-  dir_close(dir);
+  
 
   if(success)
     decrement_file_cnt(parent_disk);
@@ -142,19 +149,17 @@ do_format (void)
   printf ("done.\n");
 }
 
-/* Stores the inode corresponding to the path within INODE. 
-   Returns false if the path is invalid. */
-static bool 
-follow_path (const char *path, struct inode **inode)
-{
+static struct dir* 
+get_parent_dir(const char *path) {
+  struct inode *start_inode = NULL;
+  struct inode *save_inode = NULL;
+  struct dir *dir = NULL;
   char *part = malloc(sizeof(char) * (NAME_MAX + 1 ));
-  struct inode *start_inode; //= (struct inode *) malloc(sizeof(struct inode));
   int read = get_next_part (part, &path);
   if (read == -1)
-    return false;
+    return NULL;
   if(read == 1 && strcmp(part, "..") == 0) {
     struct inode *cur_inode = thread_current()->cwd;
-    //struct inode_disk *cur_disk = buffer_cache_get (cur_inode->sector);
     block_sector_t parent_sector = inode_get_parentsector(cur_inode);
     start_inode = inode_open (parent_sector);
   } else if (read == 1 && strcmp(part, "/")  == 0) {
@@ -162,16 +167,41 @@ follow_path (const char *path, struct inode **inode)
   } else {
     start_inode = thread_current ()->cwd;
   }
-  inode = &start_inode;
-  while ((read = get_next_part(part, &path)) > 0)
+  read = get_next_part(part, &path);
+  while (read > 0)
   {
-    bool lookup = dir_lookup(dir_open(start_inode), part, inode);
-    if(!lookup)
-      return false;
-    start_inode = *inode;
+    dir = dir_open(start_inode);
+    bool lookup = dir_lookup(dir, part, &save_inode);
+    dir_close(dir);
+    read = get_next_part(part, &path);
+    if (read == -1)
+      return NULL;
+    if (!lookup && read != 0)
+      break;
+    else if(read == 0)
+      return dir;
+    start_inode = save_inode;
   }
-  if (read == -1) 
-      return false;
+  return NULL;
+}
+
+/* Stores the inode corresponding to the path within INODE. 
+   Returns false if the path is invalid. */
+static bool 
+follow_path (const char *path, struct inode **inode)
+{
+  struct dir *parent_dir = get_parent_dir(path);
+  if (parent_dir == NULL)
+    return false;
+  char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
+  int read;
+  while ((read = get_next_part (filename, &path)) > 0) {
+  }
+  if (read == -1)
+    return false;
+  bool lookup = dir_lookup(parent_dir, filename, inode);
+  if (!lookup)
+    return false;
   return true;
 }
 
