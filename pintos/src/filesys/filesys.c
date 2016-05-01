@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "threads/thread.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -118,7 +119,7 @@ follow_path (const char *path, struct inode **inode)
   if (read == -1)
     return false;
   if(read == 1 && strcmp(part, "..") == 0) {
-    struct inode *cur_inode = thread_current ()->cwd;
+    struct inode *cur_inode = thread_current()->cwd;
     struct inode_disk *cur_disk = buffer_cache_get (cur_inode->sector);
     block_sector_t parent_sector = cur_disk->parent_sector;
     start_inode = inode_open (parent_sector);

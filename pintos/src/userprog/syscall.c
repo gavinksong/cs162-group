@@ -7,8 +7,10 @@
 #include "threads/init.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "filesys/buffer-cache.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "filesys/inode.h"
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 #include "devices/shutdown.h"
@@ -20,6 +22,7 @@ struct fnode *get_file_from_fd (int fd);
 void check_ptr (void *ptr, size_t size);
 void check_string (char *ptr);
 bool valid_addr (void *uaddr);
+bool is_dir(struct inode *inode);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -53,6 +56,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_OPEN:
     case SYS_FILESIZE:
     case SYS_TELL:
+    case SYS_ISDIR:
     case SYS_CLOSE:
       check_ptr (&args[1], sizeof (uint32_t));
   }
@@ -127,6 +131,8 @@ syscall_handler (struct intr_frame *f UNUSED)
         file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)
         f->eax = file_tell (fn->file);
+      else if(args[0] == SYS_ISDIR) 
+        f->eax = is_dir( fn->file->inode);
       else if(args[0] == SYS_CLOSE) {
         file_close (fn->file);
         list_remove (&fn->elem);
@@ -135,6 +141,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     lock_release (&file_lock);
   }
+}
+
+bool is_dir(struct inode *inode) {
+  struct inode_disk *disk_node = buffer_cache_get (inode->sector);
+  return disk_node->is_dir;
 }
 
 struct fnode *get_file_from_fd (int fd) {
