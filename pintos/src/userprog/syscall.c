@@ -11,6 +11,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "filesys/inode.h"
+#include "filesys/directory.h"
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 #include "devices/shutdown.h"
@@ -125,9 +126,10 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if(args[0] == SYS_MKDIR)
       f->eax = filesys_create((char *) args[1], 0, true);
     else if(args[0] == SYS_CHDIR) {
-      struct inode *save_inode = (inode *)malloc(sizeof(struct inode));
-      f->eax = filesys_chdir(args[1], &save_inode);
-      thread_current()->cwd = save_inode;
+      struct inode *save_inode = malloc(sizeof(struct inode));
+      f->eax = filesys_chdir((char *) args[1], &save_inode);
+      if(f->eax)
+        thread_current()->cwd = save_inode;
     }
     else if (args[0] == SYS_OPEN) {
       struct file *file_ = filesys_open ((char *) args[1]);
@@ -148,12 +150,14 @@ syscall_handler (struct intr_frame *f UNUSED)
         file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)
         f->eax = file_tell (fn->file);
-      else if(args[0] == SYS_ISDIR) 
-        f->eax = is_dir( fn->file->inode);
+      else if(args[0] == SYS_ISDIR) {
+        struct file *file_object = fn->file;
+        f->eax = is_dir( file_object->inode);
+      }
       else if(args[0] == SYS_INUMBER)
         f->eax = inode_get_inumber (fn->file->inode);
       else if(args[0] == SYS_READDIR) {
-        if(!is_dir(fn->file->inode)
+        if(!is_dir(fn->file->inode))
           f->eax = false;
         struct dir *dir = dir_open (fn->file->inode);
         f->eax = dir_readdir(dir, (char *) args[2]);
