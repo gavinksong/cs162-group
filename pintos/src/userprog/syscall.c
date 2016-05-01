@@ -60,6 +60,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_INUMBER:
     case SYS_MKDIR:
     case SYS_CHDIR:
+    case SYS_READDIR:
     case SYS_CLOSE:
       check_ptr (&args[1], sizeof (uint32_t));
   }
@@ -151,6 +152,12 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = is_dir( fn->file->inode);
       else if(args[0] == SYS_INUMBER)
         f->eax = inode_get_inumber (fn->file->inode);
+      else if(args[0] == SYS_READDIR) {
+        if(!is_dir(fn->file->inode)
+          f->eax = false;
+        struct dir *dir = dir_open (fn->file->inode);
+        f->eax = dir_readdir(dir, (char *) args[2]);
+      }
       else if(args[0] == SYS_CLOSE) {
         file_close (fn->file);
         list_remove (&fn->elem);
