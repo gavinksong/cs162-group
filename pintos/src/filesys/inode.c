@@ -20,7 +20,7 @@ struct inode_disk
     block_sector_t indirect;              /* Indirect pointer. */
     block_sector_t doubly_indirect;       /* Doubly indirect pointer. */
     block_sector_t parent_dir;            /* inode_disk sector of the parent directory. */
-    uint32_t num_files;                 /* The number of subdirectories or files. */
+    uint32_t num_files;                   /* The number of subdirectories or files. */
     bool is_dir;                          /* True if this file is a directory. */
     off_t length;                         /* File size in bytes. */
     unsigned magic;                       /* Note: magic has a different offset now. */
@@ -77,7 +77,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -88,27 +88,12 @@ inode_create (block_sector_t sector, off_t length)
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
-  disk_inode = calloc (1, sizeof *disk_inode);
-  if (disk_inode != NULL)
-    {
-      size_t sectors = bytes_to_sectors (length);
-      disk_inode->length = length;
-      disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          buffer_cache_write (sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                buffer_cache_write (disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
-      free (disk_inode);
-    }
+  disk_inode = buffer_cache_get (sector);
+  disk_inode->length = 0;
+  disk_inode->is_dir = is_dir;
+  disk_inode->magic = INODE_MAGIC;
+  success = extend_inode_length (disk_inode, length);
+  buffer_cache_release (disk_inode);
   return success;
 }
 

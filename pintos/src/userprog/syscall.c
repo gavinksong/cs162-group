@@ -57,6 +57,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_FILESIZE:
     case SYS_TELL:
     case SYS_ISDIR:
+    case SYS_INUMBER:
     case SYS_CLOSE:
       check_ptr (&args[1], sizeof (uint32_t));
   }
@@ -109,9 +110,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     lock_acquire (&file_lock);
 
     if (args[0] == SYS_CREATE)
-      f->eax = filesys_create ((char *) args[1], args[2]);
+      f->eax = filesys_create ((char *) args[1], args[2], false);
     else if (args[0] == SYS_REMOVE)
       f->eax = filesys_remove ((char *) args[1]);
+    else if(args[0] == SYS_MKDIR)
+      f->eax = filesys_create((char *) args[1], 0, true);
     else if (args[0] == SYS_OPEN) {
       struct file *file_ = filesys_open ((char *) args[1]);
       f->eax = file_ ? add_file_to_process (file_) : -1;
@@ -133,6 +136,8 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = file_tell (fn->file);
       else if(args[0] == SYS_ISDIR) 
         f->eax = is_dir( fn->file->inode);
+      else if(args[0] == SYS_INUMBER)
+        f->eax = inode_get_inumber (fn->file->inode);
       else if(args[0] == SYS_CLOSE) {
         file_close (fn->file);
         list_remove (&fn->elem);
