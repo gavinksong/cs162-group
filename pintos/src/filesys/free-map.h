@@ -4,8 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "devices/block.h"
+#include "threads/synch.h"
 
-const struct lock *free_map_lock;   /* Lock for free map operations. */
+struct lock free_map_lock;   /* Lock for free map operations. */
 
 void free_map_init (void);
 void free_map_read (void);

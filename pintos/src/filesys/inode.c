@@ -6,6 +6,7 @@
 #include "filesys/buffer-cache.h"
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
+#include "threads/synch.h"
 #include "threads/malloc.h"
 
 /* Identifies an inode. */
@@ -59,18 +60,11 @@ static bool allocate_sectors (size_t start, block_sector_t *sectors,
 static bool deallocate_sectors (size_t start, block_sector_t *sectors,
                                 size_t cnt, void *aux UNUSED);
 
-struct buffer_aux {
-  uint8_t *buffer;
-  off_t size;
-  off_t pos;
-  off_t offset;
-};
-
 static bool write_to_sectors (size_t start, block_sector_t *sectors,
-                              size_t cnt, struct buffer_aux *);
+                              size_t cnt, void *aux);
 
 static bool read_from_sectors (size_t start, block_sector_t *sectors,
-                               size_t cnt, struct buffer_aux *);
+                               size_t cnt, void *aux);
 
 /* Applies MAP_FUNC on arrays of sector numbers for all of
    INODE's data blocks indexed between START (inclusive) and
@@ -133,7 +127,7 @@ inode_map_sectors (const struct inode_disk *inode,
 /* Shortens the length of INODE to LENGTH, deallocating sectors
    as necessary. */
 static void
-shorten_inode_length (const struct inode_disk *inode, off_t length)
+shorten_inode_length (struct inode_disk *inode, off_t length)
 {
   ASSERT (inode != NULL);
   ASSERT (length <= MAX_LENGTH);
@@ -146,7 +140,7 @@ shorten_inode_length (const struct inode_disk *inode, off_t length)
   inode_map_sectors (inode, deallocate_sectors, start, end, NULL);
   
   if (start <= border && border < end)
-    free_map_deallocate (1, &inode->indirect);
+    free_map_release (inode->indirect, 1);
 
   border += NUM_INDIRECT;
 
@@ -154,11 +148,11 @@ shorten_inode_length (const struct inode_disk *inode, off_t length)
     size_t i = (start > border) ? (start - border) / NUM_INDIRECT : 0;
     size_t cnt = (end - border) / NUM_INDIRECT - i;
     block_sector_t *indirects = buffer_cache_get (inode->doubly_indirect);
-    free_map_deallocate_nc (cnt, indirects[i]);
+    free_map_release_nc (&indirects[i], cnt);
   }
 
   if (start <= border && border < end)
-    free_map_deallocate (1, &inode->doubly_indirect);
+    free_map_release (inode->doubly_indirect, 1);
 
   inode->length = length;
 }
@@ -166,7 +160,7 @@ shorten_inode_length (const struct inode_disk *inode, off_t length)
 /* Extends the length of INODE to the LENGTH, allocating new
    sectors as needed. */
 static bool
-extend_inode_length (const struct inode_disk *inode, off_t length)
+extend_inode_length (struct inode_disk *inode, off_t length)
 {
   ASSERT (inode != NULL);
   ASSERT (length <= MAX_LENGTH);
@@ -176,11 +170,11 @@ extend_inode_length (const struct inode_disk *inode, off_t length)
   size_t end = bytes_to_sectors (length);
   size_t border = NUM_DIRECT;
 
-  lock_acquire (free_map_lock);
+  lock_acquire (&free_map_lock);
   if (free_map_available_space () < end - start
                                     + (end / NUM_DIRECT)
                                     - (start / NUM_DIRECT)) {
-    lock_release (free_map_lock);
+    lock_release (&free_map_lock);
     return false;
   }
   
@@ -196,11 +190,11 @@ extend_inode_length (const struct inode_disk *inode, off_t length)
     size_t i = (start > border) ? (start - border) / NUM_INDIRECT : 0;
     size_t cnt = (end - border) / NUM_INDIRECT - i;
     block_sector_t *indirects = buffer_cache_get (inode->doubly_indirect);
-    free_map_allocate_nc (cnt, indirects[i]);
+    free_map_allocate_nc (cnt, &indirects[i]);
   }
 
   inode_map_sectors (inode, allocate_sectors, start, end, NULL);
-  lock_release (free_map_lock);
+  lock_release (&free_map_lock);
   inode->length = length;
   return true;
 }
@@ -330,13 +324,20 @@ inode_remove (struct inode *inode)
   inode->removed = true;
 }
 
+struct buffer_aux {
+  const uint8_t *buffer;
+  off_t size;
+  off_t pos;
+  off_t offset;
+};
+
 /* Reads SIZE bytes from INODE into BUFFER, starting at position OFFSET.
    Returns the number of bytes actually read, which may be less
    than SIZE if an end of file is reached. */
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
 {
-  struct inode_disk *disk_inode = buffer_cache_get (inode->data);
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
   if (disk_inode->length < offset)
     return 0;
   if (disk_inode->length < offset + size)
@@ -367,7 +368,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
-  struct inode_disk *disk_inode = buffer_cache_get (inode->data);
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
   if (inode_length (inode) < offset + size) {
     // FIXME: hit or miss
     if (!extend_inode_length (disk_inode, offset + size))
@@ -420,24 +421,26 @@ inode_length (const struct inode *inode)
 }
 
 static bool
-allocate_sectors (size_t start, block_sector_t *sectors,
+allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)
 {
   return free_map_allocate_nc (cnt, sectors);
 }
 
 static bool
-deallocate_sectors (size_t start, block_sector_t *sectors,
+deallocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                     size_t cnt, void *aux UNUSED)
 {
-  free_map_deallocate_nc (sectors, cnt);
+  free_map_release_nc (sectors, cnt);
   return true;
 }
 
 static bool
 write_to_sectors (size_t start, block_sector_t *sectors,
-                  size_t cnt, struct buffer_aux *)
+                  size_t cnt, void *aux_)
 {
+  struct buffer_aux *aux = aux_;
+
   /* Index of the starting data block. */
   size_t block_idx = aux->offset / BLOCK_SECTOR_SIZE;
   ASSERT (block_idx >= start || block_idx < start + cnt);
@@ -459,7 +462,7 @@ write_to_sectors (size_t start, block_sector_t *sectors,
 
     /* Load sector into cache, then partially copy into caller's buffer. */
     void *cache_block = buffer_cache_get (sector);
-    memcpy (cache_block + sector_ofs, buffer + aux->pos, chunk_size);
+    memcpy (cache_block + sector_ofs, aux->buffer + aux->pos, chunk_size);
     buffer_cache_release (cache_block);
 
     /* Advance. */
@@ -472,8 +475,10 @@ write_to_sectors (size_t start, block_sector_t *sectors,
 
 static bool
 read_from_sectors (size_t start, block_sector_t *sectors,
-                   size_t cnt, struct buffer_aux *aux)
+                   size_t cnt, void *aux_)
 {
+  struct buffer_aux *aux = aux_;
+
   /* Index of the starting data block. */
   size_t block_idx = aux->offset / BLOCK_SECTOR_SIZE;
   ASSERT (block_idx >= start || block_idx < start + cnt);
@@ -495,7 +500,7 @@ read_from_sectors (size_t start, block_sector_t *sectors,
 
     /* Load sector into cache, then partially copy into caller's buffer. */
     void *cache_block = buffer_cache_get (sector);
-    memcpy (buffer + aux->pos, cache_block + sector_ofs, chunk_size);
+    memcpy (aux->buffer + aux->pos, cache_block + sector_ofs, chunk_size);
     buffer_cache_release (cache_block);
 
     /* Advance. */
