@@ -80,14 +80,23 @@ filesys_open (const char *name)
   int read;
   struct inode *save_inode = (inode *) malloc(sizeof(struct inode));
   bool success = follow_path(name, &save_inode);
-  struct dir *dir = dir_open(inode_open(buffer_cache_get(save_inode->sector)->parent_sector));
+  struct inode_disk *parent_disk = buffer_cache_get(save_inode->sector)->parent_sector;
+  struct inode *parent_inode = inode_open(parent_disk);
+  struct dir *dir = dir_open(parent_inode);
   while (read = get_next_part (filename, &name) > 0) {
   }
   dir_close(dir);
-  if (dir != NULL && read == 0 && buffer_cache_get(save_inode->sector)->is_dir){
-    return (file *)dir_open(save_inode);
-  }
-  return file_open (save_inode);
+  
+  struct file *result;
+  if (success && dir != NULL && read == 0 && buffer_cache_get(save_inode->sector)->is_dir){
+    result = file *)dir_open(save_inode))
+  else
+    result = file_open (save_inode);
+
+  if (result)
+      parent_disk->num_files += 1;
+  return result;
+
 }
 
 /* Deletes the file named NAME.
@@ -105,11 +114,13 @@ filesys_remove (const char *name)
   struct inode *save_inode = (inode *) malloc(sizeof(struct inode));
   bool success = follow_path(name, &save_inode);
   char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
+  struct inode_disk *parent_disk = buffer_cache_get(save_inode->sector)->parent_sector;
+  struct inode *parent_inode = inode_open(parent_disk);
   int read;
   while (read = get_next_part (filename, &name) > 0) {
   }
   if (success)
-    dir = dir_open(inode_open(buffer_cache_get(save_inode->sector)->parent_sector));
+    dir = dir_open(parent_inode);
   if (success && buffer_cache_get (save_inode->sector)->is_dir 
       && dir_open(save_inode) != dir_open_root()
       && buffer_cache_get (save_inode->sector)->num_files == 0
@@ -120,6 +131,9 @@ filesys_remove (const char *name)
   else
     success = false;
   dir_close(dir);
+
+  if(success)
+    parent_disk->num_files -= 1;
 
   return success;
 }
