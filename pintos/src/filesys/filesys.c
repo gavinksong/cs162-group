@@ -69,14 +69,25 @@ filesys_create (const char *name, off_t initial_size, bool is_dir)
 struct file *
 filesys_open (const char *name)
 {
+  /*
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
-  dir_close (dir);
-
-  return file_open (inode);
+  dir_close (dir);*/
+  char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
+  int read;
+  struct inode *save_inode = (inode *) malloc(sizeof(struct inode));
+  bool success = follow_path(name, &save_inode);
+  struct dir *dir = dir_open(inode_open(buffer_cache_get(save_inode->sector)->parent_sector));
+  while (read = get_next_part (filename, &name) > 0) {
+  }
+  dir_close(dir);
+  if (dir != NULL && read == 0 && buffer_cache_get(save_inode->sector)->is_dir){
+    return (file *)dir_open(save_inode);
+  }
+  return file_open (save_inode);
 }
 
 /* Deletes the file named NAME.
@@ -96,10 +107,9 @@ filesys_remove (const char *name)
   char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
   int read;
   while (read = get_next_part (filename, &name) > 0) {
-
   }
   if (success)
-    dir = dir_open(buffer_cache_get (save_inode->sector)->parent_sector);
+    dir = dir_open(inode_open(buffer_cache_get(save_inode->sector)->parent_sector));
   if (success && buffer_cache_get (save_inode->sector)->is_dir 
       && dir_open(save_inode) != dir_open_root()
       && buffer_cache_get (save_inode->sector)->num_files == 0
