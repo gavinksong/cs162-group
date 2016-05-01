@@ -76,20 +76,17 @@ filesys_open (const char *name)
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);*/
-  char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
   int read;
   struct inode *save_inode = (inode *) malloc(sizeof(struct inode));
   bool success = follow_path(name, &save_inode);
   struct inode_disk *parent_disk = buffer_cache_get(save_inode->sector)->parent_sector;
   struct inode *parent_inode = inode_open(parent_disk);
   struct dir *dir = dir_open(parent_inode);
-  while (read = get_next_part (filename, &name) > 0) {
-  }
   dir_close(dir);
   
   struct file *result;
   if (success && dir != NULL && read == 0 && buffer_cache_get(save_inode->sector)->is_dir){
-    result = file *)dir_open(save_inode))
+    result = (file *)dir_open(save_inode))
   else
     result = file_open (save_inode);
 
@@ -122,9 +119,8 @@ filesys_remove (const char *name)
   if (success)
     dir = dir_open(parent_inode);
   if (success && buffer_cache_get (save_inode->sector)->is_dir 
-      && dir_open(save_inode) != dir_open_root()
-      && buffer_cache_get (save_inode->sector)->num_files == 0
-      && read == 0) 
+      && dir_open(save_inode) != dir_open_root() && read == 0
+      && buffer_cache_get (save_inode->sector)->num_files == 0) 
     success = dir_remove(dir, filename);
   else if (success && !(buffer_cache_get (save_inode->sector)->is_dir) && read == 0) 
     success = dir_remove(dir, filename);
