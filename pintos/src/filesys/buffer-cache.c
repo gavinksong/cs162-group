@@ -70,12 +70,14 @@ buffer_cache_get (block_sector_t sector)
     struct entry *old_entry = entries[clock_hand];
     if (old_entry != NULL) {
       block_write (fs_device, old_entry->sector, index_to_block (old_entry->index));
+      hash_delete (&hashmap, &old_entry->elem);
       free (old_entry);
     }
 
     e->index = clock_hand;
     entries[e->index] = e;
     clock_hand = (clock_hand + 1) % NUM_SECTORS;
+    block_read (fs_device, e->sector, index_to_block (e->index));
   }
   else {
     free (e);
@@ -84,7 +86,6 @@ buffer_cache_get (block_sector_t sector)
 
   lock_acquire (&e->lock);
   bitmap_mark (usebits, e->index);
-  block_read (fs_device, e->sector, index_to_block (e->index));
 
   lock_release (&cache_lock);
 

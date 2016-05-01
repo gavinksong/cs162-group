@@ -208,6 +208,7 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
+  buffer_cache_init ();
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -232,6 +233,7 @@ inode_create (block_sector_t sector, off_t length)
   disk_inode->magic = INODE_MAGIC;
   success = extend_inode_length (disk_inode, length);
   buffer_cache_release (disk_inode);
+
   return success;
 }
 
@@ -383,7 +385,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   aux->offset = offset;
   aux->pos = 0;
 
-  inode_map_sectors (disk_inode, read_from_sectors, start, end, aux);
+  inode_map_sectors (disk_inode, write_to_sectors, start, end, aux);
   buffer_cache_release (disk_inode);
   free (aux);
 
