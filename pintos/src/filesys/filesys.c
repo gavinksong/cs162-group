@@ -76,7 +76,6 @@ filesys_open (const char *name)
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);*/
-  int read;
   struct inode *save_inode = (inode *) malloc(sizeof(struct inode));
   bool success = follow_path(name, &save_inode);
   struct inode_disk *parent_disk = buffer_cache_get(save_inode->sector)->parent_sector;
@@ -85,8 +84,8 @@ filesys_open (const char *name)
   dir_close(dir);
   
   struct file *result;
-  if (success && dir != NULL && read == 0 && buffer_cache_get(save_inode->sector)->is_dir){
-    result = (file *)dir_open(save_inode))
+  if (success && dir != NULL && read == 0 && buffer_cache_get(save_inode->sector)->is_dir)
+    result = (file *)dir_open(save_inode);
   else
     result = file_open (save_inode);
 
