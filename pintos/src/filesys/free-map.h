@@ -6,7 +6,7 @@
 #include "devices/block.h"
 #include "threads/synch.h"
 
-struct lock free_map_lock;   /* Lock for free map operations. */
+struct lock free_map_lock;
 
 void free_map_init (void);
 void free_map_read (void);

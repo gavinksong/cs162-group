@@ -12,7 +12,7 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define NUM_DIRECT 122
+#define NUM_DIRECT 121
 #define NUM_INDIRECT 128
 #define MAX_LENGTH 8388608
 
@@ -130,8 +130,7 @@ static void
 shorten_inode_length (struct inode_disk *inode, off_t length)
 {
   ASSERT (inode != NULL);
-  ASSERT (length <= MAX_LENGTH);
-  ASSERT (length >= inode->length);
+  ASSERT (length <= inode->length);
 
   size_t start = bytes_to_sectors (length);
   size_t end = bytes_to_sectors (inode->length);
@@ -180,19 +179,19 @@ extend_inode_length (struct inode_disk *inode, off_t length)
   
   if (start <= border && border < end)
     free_map_allocate (1, &inode->indirect);
-
+  
   border += NUM_INDIRECT;
-
+  
   if (start <= border && border < end)
     free_map_allocate (1, &inode->doubly_indirect);
-
+  
   if (border < end) {
     size_t i = (start > border) ? (start - border) / NUM_INDIRECT : 0;
     size_t cnt = (end - border) / NUM_INDIRECT - i;
     block_sector_t *indirects = buffer_cache_get (inode->doubly_indirect);
     free_map_allocate_nc (cnt, &indirects[i]);
   }
-
+  
   inode_map_sectors (inode, allocate_sectors, start, end, NULL);
   lock_release (&free_map_lock);
   inode->length = length;
@@ -346,7 +345,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     size = disk_inode->length - offset;
 
   size_t start = offset / BLOCK_SECTOR_SIZE;
-  size_t end = (offset + size) / BLOCK_SECTOR_SIZE;
+  size_t end = DIV_ROUND_UP (offset + size, BLOCK_SECTOR_SIZE);
   struct buffer_aux *aux = malloc (sizeof (struct buffer_aux));
   aux->buffer = buffer_;
   aux->size = size;
@@ -371,14 +370,14 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     return 0;
 
   struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-  if (inode_length (inode) < offset + size) {
+  if (disk_inode->length < offset + size) {
     // FIXME: hit or miss
     if (!extend_inode_length (disk_inode, offset + size))
       return 0;
   }
 
   size_t start = offset / BLOCK_SECTOR_SIZE;
-  size_t end = (offset + size) / BLOCK_SECTOR_SIZE;
+  size_t end = DIV_ROUND_UP (offset + size, BLOCK_SECTOR_SIZE);
   struct buffer_aux *aux = malloc (sizeof (struct buffer_aux));
   aux->buffer = buffer_;
   aux->size = size;
