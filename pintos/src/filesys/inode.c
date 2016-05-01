@@ -331,7 +331,9 @@ decrement_file_cnt(struct inode_disk * disk_node){
 
 uint32_t 
 inode_get_file_cnt(struct inode *inode) {
-  return buffer_cache_get (inode->sector)->num_files;
+  struct inode_disk *disk_inode = NULL;
+  disk_inode = buffer_cache_get (inode->sector);
+  return disk_inode->num_files;
 }
 
 static bool

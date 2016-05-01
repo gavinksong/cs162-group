@@ -69,8 +69,7 @@ filesys_create (const char *name, off_t initial_size, bool is_dir)
 struct file *
 filesys_open (const char *name)
 {
-  struct inode *save_inode;
-  //= (struct inode *) malloc(sizeof(struct inode));
+  struct inode *save_inode;// = (struct inode *) malloc(sizeof(struct inode));
   bool success = follow_path(name, &save_inode);
   struct inode_disk *parent_disk = inode_get_parentdisk(save_inode);
   
