@@ -58,6 +58,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_TELL:
     case SYS_ISDIR:
     case SYS_INUMBER:
+    case SYS_MKDIR:
+    case SYS_CHDIR:
     case SYS_CLOSE:
       check_ptr (&args[1], sizeof (uint32_t));
   }
@@ -74,6 +76,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WRITE:
     case SYS_READ:
       check_ptr ((void *) args[2], args[3]);
+      break;
+    case SYS_MKDIR:
+      check_string ((char *) args[1]);
+      break;
+    case SYS_CHDIR:
+      check_string ((char *) args[1]);
       break;
   }
 
@@ -115,6 +123,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = filesys_remove ((char *) args[1]);
     else if(args[0] == SYS_MKDIR)
       f->eax = filesys_create((char *) args[1], 0, true);
+    else if(args[0] == SYS_CHDIR) {
+      struct inode *save_inode = (inode *)malloc(sizeof(struct inode));
+      f->eax = filesys_chdir(args[1], &save_inode);
+      thread_current()->cwd = save_inode;
+    }
     else if (args[0] == SYS_OPEN) {
       struct file *file_ = filesys_open ((char *) args[1]);
       f->eax = file_ ? add_file_to_process (file_) : -1;

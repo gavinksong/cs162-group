@@ -93,6 +93,10 @@ filesys_remove (const char *name)
   return success;
 }
 
+bool filesys_chdir(const char *path, struct inode **inode) {
+  return follow_path (path, inode);
+}
+
 
 
 /* Formats the file system. */
@@ -115,7 +119,6 @@ follow_path (const char *path, struct inode **inode)
   char *part = malloc(sizeof(char) * (NAME_MAX + 1 ));
   struct inode *start_inode;
   int read = get_next_part (part, &path);
-  //bool lookup;
   if (read == -1)
     return false;
   if(read == 1 && strcmp(part, "..") == 0) {
