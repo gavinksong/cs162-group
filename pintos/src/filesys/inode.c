@@ -296,3 +296,132 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
+
+block_sector_t 
+inode_get_sector(struct inode *inode) {
+  return inode->sector;
+}
+struct inode_disk *
+inode_get_parentdisk(struct inode *inode) {
+  struct inode_disk *cur_disk = buffer_cache_get(inode->sector);
+  return buffer_cache_get(cur_disk->parent_dir);
+}
+
+block_sector_t
+inode_get_parentsector(struct inode *inode) {
+  struct inode_disk *cur_disk = buffer_cache_get(inode->sector);
+  return cur_disk->parent_dir;
+}
+
+bool 
+inode_get_isdir(struct inode *inode) {
+  struct inode_disk *disk_node = buffer_cache_get (inode->sector);
+  return disk_node->is_dir;
+}
+
+void 
+increment_file_cnt(struct inode_disk * disk_node){
+  disk_node->num_files += 1;
+}
+
+void 
+decrement_file_cnt(struct inode_disk * disk_node){
+  disk_node->num_files -= 1;
+}
+
+uint32_t 
+inode_get_file_cnt(struct inode *inode) {
+  return buffer_cache_get (inode->sector)->num_files;
+}
+
+static bool
+allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
+                  size_t cnt, void *aux UNUSED)
+{
+  return free_map_allocate_nc (cnt, sectors);
+}
+
+static bool
+deallocate_sectors (size_t start UNUSED, block_sector_t *sectors,
+                    size_t cnt, void *aux UNUSED)
+{
+  free_map_release_nc (sectors, cnt);
+  return true;
+}
+
+static bool
+write_to_sectors (size_t start, block_sector_t *sectors,
+                  size_t cnt, void *aux_)
+{
+  struct buffer_aux *aux = aux_;
+
+  /* Index of the starting data block. */
+  size_t block_idx = aux->offset / BLOCK_SECTOR_SIZE;
+  ASSERT (block_idx >= start || block_idx < start + cnt);
+
+  size_t i;
+  for (i = block_idx - start; i < cnt; i++) {
+    /* Disk sector to read, starting byte offset within sector. */
+    block_sector_t sector = sectors[i];
+    int sector_ofs = aux->offset % BLOCK_SECTOR_SIZE;
+
+    /* Bytes left in sector, bytes left in buffer. */
+    int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
+    int buffer_left = aux->size - aux->pos;
+
+    /* Number of bytes to actually copy out of this sector. */
+    int chunk_size = buffer_left < sector_left ? buffer_left : sector_left;
+    if (chunk_size <= 0)
+      break;
+
+    /* Load sector into cache, then partially copy into caller's buffer. */
+    void *cache_block = buffer_cache_get (sector);
+    memcpy (cache_block + sector_ofs, aux->buffer + aux->pos, chunk_size);
+    buffer_cache_release (cache_block);
+
+    /* Advance. */
+    aux->offset += chunk_size;
+    aux->pos += chunk_size;
+  }
+
+  return true;
+}
+
+static bool
+read_from_sectors (size_t start, block_sector_t *sectors,
+                   size_t cnt, void *aux_)
+{
+  struct buffer_aux *aux = aux_;
+
+  /* Index of the starting data block. */
+  size_t block_idx = aux->offset / BLOCK_SECTOR_SIZE;
+  ASSERT (block_idx >= start || block_idx < start + cnt);
+
+  size_t i;
+  for (i = block_idx - start; i < cnt; i++) {
+    /* Disk sector to read, starting byte offset within sector. */
+    block_sector_t sector = sectors[i];
+    int sector_ofs = aux->offset % BLOCK_SECTOR_SIZE;
+
+    /* Bytes left in sector, bytes left in buffer. */
+    int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
+    int buffer_left = aux->size - aux->pos;
+
+    /* Number of bytes to actually copy out of this sector. */
+    int chunk_size = buffer_left < sector_left ? buffer_left : sector_left;
+    if (chunk_size <= 0)
+      break;
+
+    /* Load sector into cache, then partially copy into caller's buffer. */
+    void *cache_block = buffer_cache_get (sector);
+    memcpy (aux->buffer + aux->pos, cache_block + sector_ofs, chunk_size);
+    buffer_cache_release (cache_block);
+
+    /* Advance. */
+    aux->offset += chunk_size;
+    aux->pos += chunk_size;
+  }
+
+  return true;
+>>>>>>> 94fa67c... add getter functions
+}

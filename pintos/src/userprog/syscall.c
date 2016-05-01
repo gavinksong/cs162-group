@@ -23,7 +23,6 @@ struct fnode *get_file_from_fd (int fd);
 void check_ptr (void *ptr, size_t size);
 void check_string (char *ptr);
 bool valid_addr (void *uaddr);
-bool is_dir(struct inode *inode);
 
 /* Needed because only one process is allowed to access to modify the file. */
 struct lock file_lock;
@@ -118,7 +117,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   else {
     // The remaining syscalls all utilize the file system.
     lock_acquire (&file_lock);
-
+    //struct inode *inode;
     if (args[0] == SYS_CREATE)
       f->eax = filesys_create ((char *) args[1], args[2], false);
     else if (args[0] == SYS_REMOVE)
@@ -126,7 +125,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if(args[0] == SYS_MKDIR)
       f->eax = filesys_create((char *) args[1], 0, true);
     else if(args[0] == SYS_CHDIR) {
-      struct inode *save_inode = malloc(sizeof(struct inode));
+      struct inode *save_inode;
+      //save_inode = (struct inode *) malloc(sizeof(struct inode));
       f->eax = filesys_chdir((char *) args[1], &save_inode);
       if(f->eax)
         thread_current()->cwd = save_inode;
@@ -152,14 +152,14 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = file_tell (fn->file);
       else if(args[0] == SYS_ISDIR) {
         struct file *file_object = fn->file;
-        f->eax = is_dir( file_object->inode);
+        f->eax = inode_get_isdir(get_file_inode(file_object));
       }
       else if(args[0] == SYS_INUMBER)
-        f->eax = inode_get_inumber (fn->file->inode);
+        f->eax = inode_get_inumber (get_file_inode(fn->file));
       else if(args[0] == SYS_READDIR) {
-        if(!is_dir(fn->file->inode))
+        if(!inode_get_isdir(get_file_inode(fn->file)))
           f->eax = false;
-        struct dir *dir = dir_open (fn->file->inode);
+        struct dir *dir = dir_open (get_file_inode(fn->file));
         f->eax = dir_readdir(dir, (char *) args[2]);
       }
       else if(args[0] == SYS_CLOSE) {
@@ -170,11 +170,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     lock_release (&file_lock);
   }
-}
-
-bool is_dir(struct inode *inode) {
-  struct inode_disk *disk_node = buffer_cache_get (inode->sector);
-  return disk_node->is_dir;
 }
 
 struct fnode *get_file_from_fd (int fd) {

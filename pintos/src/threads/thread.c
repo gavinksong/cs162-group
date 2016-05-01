@@ -17,6 +17,8 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "threads/malloc.h"
+#include "filesys/filesys.h"
+#include "filesys/inode.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -590,6 +592,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->children);
   list_init(&t->file_list);
   t->cur_fd = 2;
+  t->cwd = inode_open (ROOT_DIR_SECTOR);
 #endif
   t->magic = THREAD_MAGIC;
 
