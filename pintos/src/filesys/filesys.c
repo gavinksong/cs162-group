@@ -102,13 +102,14 @@ filesys_remove (const char *name)
     dir = dir_open(buffer_cache_get (save_inode->sector)->parent_sector);
   if (success && buffer_cache_get (save_inode->sector)->is_dir 
       && dir_open(save_inode) != dir_open_root()
-      && buffer_cache_get (save_inode->sector)->num_files == 0) 
+      && buffer_cache_get (save_inode->sector)->num_files == 0
+      && read == 0) 
     success = dir_remove(dir, filename);
-  else if (success && !(buffer_cache_get (save_inode->sector)->is_dir)) 
+  else if (success && !(buffer_cache_get (save_inode->sector)->is_dir) && read == 0) 
     success = dir_remove(dir, filename);
   else
     success = false;
-
+  dir_close(dir);
 
   return success;
 }
