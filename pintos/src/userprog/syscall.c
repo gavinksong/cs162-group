@@ -116,7 +116,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
   else {
     // The remaining syscalls all utilize the file system.
-    lock_acquire (&file_lock);
     //struct inode *inode;
     if (args[0] == SYS_CREATE)
       f->eax = filesys_create ((char *) args[1], args[2], false);
@@ -172,7 +171,6 @@ syscall_handler (struct intr_frame *f UNUSED)
         free (fn);
       }
     }
-    lock_release (&file_lock);
   }
 }
 
