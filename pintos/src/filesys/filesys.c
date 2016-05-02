@@ -50,7 +50,16 @@ bool
 filesys_create (const char *name, off_t initial_size, bool is_dir) 
 {
   block_sector_t inode_sector = 0;
+  struct inode *inode;
+  if (strcmp(name, "") == 0)
+    return false;
+  bool duplicate = follow_path(name, &inode);
+  if (duplicate)
+    return false;
   struct dir *dir = get_parent_dir(name);
+  if (dir == NULL)
+    return false;
+  
   char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
   int read;
   while ((read = get_next_part (filename, &name)) > 0) {
@@ -62,6 +71,12 @@ filesys_create (const char *name, off_t initial_size, bool is_dir)
                   && dir_add (dir, filename, inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
+  else {
+    struct inode *parent_inode  = dir_get_inode(dir);
+    block_sector_t parent_sector = inode_get_sector(parent_sector);
+    struct inode_disk *parent_disk = buffer_cache_get(parent_sector);
+    increment_file_cnt(parent_disk);
+  }
   dir_close (dir);
 
   return success;
@@ -77,7 +92,6 @@ filesys_open (const char *name)
 {
   struct inode *save_inode = inode_malloc();
   bool success = follow_path(name, &save_inode);
-  struct inode_disk *parent_disk = inode_get_parentdisk(save_inode);
   
   struct file *result;
   if (success && inode_get_isdir(save_inode))
@@ -85,8 +99,6 @@ filesys_open (const char *name)
   else
     result = file_open (save_inode);
 
-  if (result)
-    increment_file_cnt(parent_disk);
   return result;
 
 }
@@ -168,7 +180,7 @@ get_parent_dir(const char *path) {
     start_inode = thread_current ()->cwd;
   }
   read = get_next_part(part, &path);
-  while (read > 0)
+  do
   {
     dir = dir_open(start_inode);
     bool lookup = dir_lookup(dir, part, &save_inode);
@@ -181,7 +193,7 @@ get_parent_dir(const char *path) {
     else if(read == 0)
       return dir;
     start_inode = save_inode;
-  }
+  } while (read > 0);
   return NULL;
 }
 

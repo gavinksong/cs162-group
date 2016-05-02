@@ -143,8 +143,13 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = file_length (fn->file);
       else if (args[0] == SYS_READ)
         f->eax = file_read (fn->file, (void *) args[2], args[3]);
-      else if(args[0] == SYS_WRITE)
-        f->eax = file_write (fn->file, (void *) args[2], args[3]);
+      else if(args[0] == SYS_WRITE) {
+        struct file *file_object = fn->file;
+        if(inode_get_isdir(get_file_inode(file_object)))
+          f->eax = -1;
+        else
+          f->eax = file_write (fn->file, (void *) args[2], args[3]);
+      }
       else if(args[0] == SYS_SEEK)
         file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)

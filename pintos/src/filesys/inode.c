@@ -91,6 +91,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
   disk_inode = buffer_cache_get (sector);
   disk_inode->length = 0;
   disk_inode->is_dir = is_dir;
+  disk_inode->num_files = 0;
   disk_inode->magic = INODE_MAGIC;
   success = extend_inode_length (disk_inode, length);
   buffer_cache_release (disk_inode);
