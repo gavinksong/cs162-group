@@ -24,9 +24,9 @@ struct inode_disk
     block_sector_t direct[NUM_DIRECT];    /* Direct pointers. */
     block_sector_t indirect;              /* Indirect pointer. */
     block_sector_t doubly_indirect;       /* Doubly indirect pointer. */
-    block_sector_t parent_dir;            /* inode_disk sector of the parent directory. */
+    block_sector_t parent;                /* inode_disk sector of the parent directory. */
     uint32_t num_files;                   /* The number of subdirectories or files. */
-    bool is_dir;                          /* True if this file is a directory. */
+    bool isdir;                           /* True if this file is a directory. */
     off_t length;                         /* File size in bytes. */
     unsigned magic;                       /* Note: magic has a different offset now. */
     uint8_t unused[3];
@@ -218,7 +218,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length, bool is_dir)
+inode_create (block_sector_t sector, off_t length, bool isdir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -231,7 +231,7 @@ inode_create (block_sector_t sector, off_t length, bool is_dir)
 
   disk_inode = buffer_cache_get (sector);
   disk_inode->length = 0;
-  disk_inode->is_dir = is_dir;
+  disk_inode->isdir = isdir;
   disk_inode->num_files = 0;
   disk_inode->magic = INODE_MAGIC;
   success = extend_inode_length (disk_inode, length);
@@ -283,6 +283,16 @@ inode_reopen (struct inode *inode)
   return inode;
 }
 
+/* Opens INODE's parent directory inode. */
+struct inode *
+inode_open_parent (struct inode *inode)
+{
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  block_sector_t parent = disk_inode->parent;
+  buffer_cache_release (disk_inode, false);
+  return inode_open (parent);
+}
+
 /* Returns INODE's inode number. */
 block_sector_t
 inode_get_inumber (const struct inode *inode)
@@ -328,6 +338,7 @@ inode_remove (struct inode *inode)
   inode->removed = true;
 }
 
+/* Auxilary data struct. */
 struct buffer_aux {
   void *buffer;
   off_t size;
@@ -424,6 +435,26 @@ inode_length (const struct inode *inode)
   return length;
 }
 
+/* Returns true if INODE is a directory, false otherwise. */
+bool 
+inode_isdir (const struct inode *inode)
+{
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  bool isdir = disk_inode->isdir;
+  buffer_cache_release (disk_inode, false);
+  return isdir;
+}
+
+/* Returns the number of subdirectories or files in INODE. */
+uint32_t
+inode_num_files (const struct inode *inode)
+{
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  uint32_t num_files = disk_inode->num_files;
+  buffer_cache_release (disk_inode, false);
+  return num_files;
+}
+
 static bool
 allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)
@@ -513,48 +544,4 @@ read_from_sectors (size_t start, block_sector_t *sectors,
   }
 
   return true;
-}
-
-block_sector_t 
-inode_get_sector(struct inode *inode) {
-  return inode->sector;
-}
-struct inode_disk *
-inode_get_parentdisk(struct inode *inode) {
-  struct inode_disk *cur_disk = buffer_cache_get(inode->sector);
-  return buffer_cache_get(cur_disk->parent_dir);
-}
-
-block_sector_t
-inode_get_parentsector(struct inode *inode) {
-  struct inode_disk *cur_disk = buffer_cache_get(inode->sector);
-  return cur_disk->parent_dir;
-}
-
-bool 
-inode_get_isdir(struct inode *inode) {
-  struct inode_disk *disk_node = buffer_cache_get (inode->sector);
-  return disk_node->is_dir;
-}
-
-void 
-increment_file_cnt(struct inode_disk * disk_node){
-  disk_node->num_files += 1;
-}
-
-void 
-decrement_file_cnt(struct inode_disk * disk_node){
-  disk_node->num_files -= 1;
-}
-
-uint32_t 
-inode_get_file_cnt(struct inode *inode) {
-  struct inode_disk *disk_inode = NULL;
-  disk_inode = buffer_cache_get (inode->sector);
-  return disk_inode->num_files;
-}
-
-struct inode *
-inode_malloc(void) {
-  return (struct inode*)malloc(sizeof(struct inode));
 }

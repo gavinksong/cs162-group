@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -233,4 +234,13 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
+}
+
+bool
+dir_chdir (struct dir *dir)
+{
+  struct thread *t = thread_current ();
+  inode_close (t->cwd);
+  inode_reopen (t->cwd = dir->inode);
+  return true;
 }

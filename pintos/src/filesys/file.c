@@ -1,6 +1,7 @@
 #include "filesys/file.h"
 #include <debug.h>
 #include "filesys/inode.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 
 /* An open file. */
@@ -94,7 +95,7 @@ file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs)
 off_t
 file_write (struct file *file, const void *buffer, off_t size) 
 {
-  off_t bytes_written = inode_write_at (file->inode, buffer, size, file->pos);
+  off_t bytes_written = file_write_at (file, buffer, size, file->pos);
   file->pos += bytes_written;
   return bytes_written;
 }
@@ -110,7 +111,7 @@ off_t
 file_write_at (struct file *file, const void *buffer, off_t size,
                off_t file_ofs) 
 {
-  return inode_write_at (file->inode, buffer, size, file_ofs);
+  return file_isdir (file) ? 0 : inode_write_at (file->inode, buffer, size, file_ofs);
 }
 
 /* Prevents write operations on FILE's underlying inode
@@ -165,4 +166,18 @@ file_tell (struct file *file)
 {
   ASSERT (file != NULL);
   return file->pos;
+}
+
+/* Returns the inumber of FILE. */
+uint32_t
+file_inumber (struct file *file)
+{
+  return inode_get_inumber (file->inode);
+}
+
+/* Returns true if FILE is a directory. */
+bool
+file_isdir (struct file *file)
+{
+  return inode_isdir (file->inode);
 }

@@ -113,11 +113,15 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     struct pnode *pnode;                /* Process identifier. */
     struct list children;               /* List of children processes. */
-    struct inode *cwd;                  /* The current working directory. */
     
     /* Owned by userprog/syscall.c. */
     struct list file_list;              /* Basically a file table. */
     int cur_fd;                         /* The next available file descriptor */
+#endif
+
+#ifdef FILESYS
+    /* Owned by filesys/filesys.c. */
+    struct inode *cwd;                  /* The current working directory. */
 #endif
 
     /* Owned by thread.c. */

@@ -47,6 +47,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_ptr (&args[3], sizeof (uint32_t));
     case SYS_CREATE:
     case SYS_SEEK:
+    case SYS_READDIR:
       check_ptr (&args[2], sizeof (uint32_t));
     case SYS_PRACTICE:
     case SYS_EXIT:
@@ -60,7 +61,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_INUMBER:
     case SYS_MKDIR:
     case SYS_CHDIR:
-    case SYS_READDIR:
     case SYS_CLOSE:
       check_ptr (&args[1], sizeof (uint32_t));
   }
@@ -71,6 +71,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CREATE:
     case SYS_REMOVE:
     case SYS_OPEN:
+    case SYS_MKDIR:
+    case SYS_CHDIR:
       check_string ((char *) args[1]);
       break;
     // For the following syscalls, args[2] is expected to be a buffer of size args[3].
@@ -78,11 +80,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READ:
       check_ptr ((void *) args[2], args[3]);
       break;
-    case SYS_MKDIR:
-      check_string ((char *) args[1]);
-      break;
-    case SYS_CHDIR:
-      check_string ((char *) args[1]);
+    // For readdir, args[2] is expected to be a char[READDIR_MAX_LEN + 1].
+    case SYS_READDIR:
+      check_ptr ((void *) args[2], (READDIR_MAX_LEN + 1) * sizeof (char));
       break;
   }
 
@@ -114,62 +114,43 @@ syscall_handler (struct intr_frame *f UNUSED)
     putbuf ((void *) args[2], args[3]);
     f->eax = args[3];
   }
+  else if (args[0] == SYS_CREATE)
+    f->eax = filesys_create ((char *) args[1], args[2], false);
+  else if (args[0] == SYS_REMOVE)
+    f->eax = filesys_remove ((char *) args[1]);
+  else if(args[0] == SYS_MKDIR)
+    f->eax = filesys_create ((char *) args[1], 0, true);
+  else if(args[0] == SYS_CHDIR)
+    f->eax = filesys_chdir ((char *) args[1]);
+  else if (args[0] == SYS_OPEN) {
+    struct file *file_ = filesys_open ((char *) args[1]);
+    f->eax = file_ ? add_file_to_process (file_) : -1;
+  }
   else {
-    // The remaining syscalls all utilize the file system.
-    //struct inode *inode;
-    if (args[0] == SYS_CREATE)
-      f->eax = filesys_create ((char *) args[1], args[2], false);
-    else if (args[0] == SYS_REMOVE)
-      f->eax = filesys_remove ((char *) args[1]);
-    else if(args[0] == SYS_MKDIR)
-      f->eax = filesys_create((char *) args[1], 0, true);
-    else if(args[0] == SYS_CHDIR) {
-      struct inode *save_inode = NULL;
-      f->eax = filesys_chdir((char *) args[1], &save_inode);
-      if(f->eax)
-        thread_current()->cwd = save_inode;
-    }
-    else if (args[0] == SYS_OPEN) {
-      struct file *file_ = filesys_open ((char *) args[1]);
-      f->eax = file_ ? add_file_to_process (file_) : -1;
-    }
-    else {
-      // For the remaining syscalls, args[1] is a file descriptor.
-      struct fnode *fn = get_file_from_fd (args[1]);
-      if (fn == NULL)
-        f->eax = -1;
-      else if (args[0] == SYS_FILESIZE)
-        f->eax = file_length (fn->file);
-      else if (args[0] == SYS_READ)
-        f->eax = file_read (fn->file, (void *) args[2], args[3]);
-      else if(args[0] == SYS_WRITE) {
-        struct file *file_object = fn->file;
-        if(inode_get_isdir(get_file_inode(file_object)))
-          f->eax = -1;
-        else
-          f->eax = file_write (fn->file, (void *) args[2], args[3]);
-      }
-      else if(args[0] == SYS_SEEK)
-        file_seek (fn->file, args[2]);
-      else if(args[0] == SYS_TELL)
-        f->eax = file_tell (fn->file);
-      else if(args[0] == SYS_ISDIR) {
-        struct file *file_object = fn->file;
-        f->eax = inode_get_isdir(get_file_inode(file_object));
-      }
-      else if(args[0] == SYS_INUMBER)
-        f->eax = inode_get_inumber (get_file_inode(fn->file));
-      else if(args[0] == SYS_READDIR) {
-        if(!inode_get_isdir(get_file_inode(fn->file)))
-          f->eax = false;
-        struct dir *dir = dir_open (get_file_inode(fn->file));
-        f->eax = dir_readdir(dir, (char *) args[2]);
-      }
-      else if(args[0] == SYS_CLOSE) {
-        file_close (fn->file);
-        list_remove (&fn->elem);
-        free (fn);
-      }
+    // For the remaining syscalls, args[1] is a file descriptor.
+    struct fnode *fn = get_file_from_fd (args[1]);
+    if (fn == NULL)
+      f->eax = -1;
+    else if (args[0] == SYS_FILESIZE)
+      f->eax = file_length (fn->file);
+    else if (args[0] == SYS_READ)
+      f->eax = file_read (fn->file, (void *) args[2], args[3]);
+    else if(args[0] == SYS_WRITE)
+      f->eax = file_write (fn->file, (void *) args[2], args[3]);
+    else if(args[0] == SYS_SEEK)
+      file_seek (fn->file, args[2]);
+    else if(args[0] == SYS_TELL)
+      f->eax = file_tell (fn->file);
+    else if(args[0] == SYS_ISDIR)
+      f->eax = file_isdir (fn->file);
+    else if(args[0] == SYS_INUMBER)
+      f->eax = file_inumber (fn->file);
+    else if(args[0] == SYS_READDIR)
+      barrier ();
+    else if(args[0] == SYS_CLOSE) {
+      file_close (fn->file);
+      list_remove (&fn->elem);
+      free (fn);
     }
   }
 }
