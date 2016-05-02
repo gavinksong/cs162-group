@@ -51,7 +51,7 @@ bool
 filesys_create (const char *name, off_t initial_size, bool isdir) 
 {
   block_sector_t inode_sector = 0;
-  struct dir *dir;
+  struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   bool success = follow_path (name, &dir, filename)
                  && free_map_allocate (1, &inode_sector)
@@ -72,7 +72,7 @@ filesys_create (const char *name, off_t initial_size, bool isdir)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir;
+  struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   struct inode *inode = NULL;
 
@@ -90,7 +90,7 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir;
+  struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   bool success = follow_path (name, &dir, filename)
                  && dir_remove (dir, filename);
@@ -102,7 +102,7 @@ filesys_remove (const char *name)
 bool
 filesys_chdir (const char *path)
 {
-  struct dir *dir;
+  struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   bool success = follow_path (path, &dir, filename)
                  && filename[0] == '\0'
