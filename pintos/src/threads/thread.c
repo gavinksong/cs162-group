@@ -277,6 +277,11 @@ thread_create (const char *name, int priority,
   t->pnode = p;
 #endif
 
+  /* Inherit current working directory. */
+#ifdef FILESYS
+  t->cwd = running_thread ()->cwd;
+#endif
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -588,13 +593,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->nice = running_thread ()->nice;
   t->recent_cpu = fix_div(running_thread ()->recent_cpu, fix_int(100));
   t->alarm_time = 0;
+  t->magic = THREAD_MAGIC;
 #ifdef USERPROG
   list_init(&t->children);
   list_init(&t->file_list);
   t->cur_fd = 2;
-  t->cwd = inode_open (ROOT_DIR_SECTOR);
 #endif
-  t->magic = THREAD_MAGIC;
+  
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

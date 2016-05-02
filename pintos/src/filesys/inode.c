@@ -8,12 +8,12 @@
 #include "filesys/free-map.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
-#include "filesys/buffer-cache.h"
+#include "threads/thread.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define NUM_DIRECT 121
+#define NUM_DIRECT 120
 #define NUM_INDIRECT 128
 #define MAX_LENGTH 8388608
 
@@ -210,6 +210,7 @@ inode_init (void)
 {
   list_init (&open_inodes);
   buffer_cache_init ();
+  thread_current()->cwd = inode_open(ROOT_DIR_SECTOR);
 }
 
 /* Initializes an inode with LENGTH bytes of data and
@@ -230,6 +231,7 @@ inode_create (block_sector_t sector, off_t length, bool isdir)
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
   disk_inode = buffer_cache_get (sector);
+  disk_inode->parent = sector;
   disk_inode->length = 0;
   disk_inode->isdir = isdir;
   disk_inode->num_files = 0;

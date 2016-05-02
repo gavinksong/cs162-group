@@ -9,7 +9,6 @@ struct bitmap;
 
 void inode_init (void);
 bool inode_create (block_sector_t, off_t, bool);
-
 struct inode *inode_open (block_sector_t);
 struct inode *inode_reopen (struct inode *);
 struct inode *inode_open_parent(struct inode *);

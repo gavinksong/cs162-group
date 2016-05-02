@@ -31,6 +31,8 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
+
+  thread_current ()->cwd = inode_open (ROOT_DIR_SECTOR);
 }
 
 /* Shuts down the file system module, writing any unwritten data
@@ -144,8 +146,11 @@ follow_path (const char *path, struct dir **dir,
       if (next == NULL)
         return false;
     }
-    else if (strcmp (filename, ".") != 0) {
-      *dir = dir_open (inode);
+    else if (strcmp (filename, ".") == 0) {
+      next = inode_reopen (inode);
+    }
+    else {
+      *dir = dir_open (inode_reopen (inode));
       dir_lookup (*dir, filename, &next);
       dir_close (*dir);
       if (next == NULL || !inode_isdir (next))
