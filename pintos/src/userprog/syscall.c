@@ -7,8 +7,11 @@
 #include "threads/init.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "filesys/buffer-cache.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "filesys/inode.h"
+#include "filesys/directory.h"
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 #include "devices/shutdown.h"
@@ -53,6 +56,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_OPEN:
     case SYS_FILESIZE:
     case SYS_TELL:
+    case SYS_ISDIR:
+    case SYS_INUMBER:
+    case SYS_MKDIR:
+    case SYS_CHDIR:
+    case SYS_READDIR:
     case SYS_CLOSE:
       check_ptr (&args[1], sizeof (uint32_t));
   }
@@ -69,6 +77,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WRITE:
     case SYS_READ:
       check_ptr ((void *) args[2], args[3]);
+      break;
+    case SYS_MKDIR:
+      check_string ((char *) args[1]);
+      break;
+    case SYS_CHDIR:
+      check_string ((char *) args[1]);
       break;
   }
 
@@ -102,12 +116,19 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
   else {
     // The remaining syscalls all utilize the file system.
-    lock_acquire (&file_lock);
-
+    //struct inode *inode;
     if (args[0] == SYS_CREATE)
-      f->eax = filesys_create ((char *) args[1], args[2]);
+      f->eax = filesys_create ((char *) args[1], args[2], false);
     else if (args[0] == SYS_REMOVE)
       f->eax = filesys_remove ((char *) args[1]);
+    else if(args[0] == SYS_MKDIR)
+      f->eax = filesys_create((char *) args[1], 0, true);
+    else if(args[0] == SYS_CHDIR) {
+      struct inode *save_inode = NULL;
+      f->eax = filesys_chdir((char *) args[1], &save_inode);
+      if(f->eax)
+        thread_current()->cwd = save_inode;
+    }
     else if (args[0] == SYS_OPEN) {
       struct file *file_ = filesys_open ((char *) args[1]);
       f->eax = file_ ? add_file_to_process (file_) : -1;
@@ -121,19 +142,35 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = file_length (fn->file);
       else if (args[0] == SYS_READ)
         f->eax = file_read (fn->file, (void *) args[2], args[3]);
-      else if(args[0] == SYS_WRITE)
-        f->eax = file_write (fn->file, (void *) args[2], args[3]);
+      else if(args[0] == SYS_WRITE) {
+        struct file *file_object = fn->file;
+        if(inode_get_isdir(get_file_inode(file_object)))
+          f->eax = -1;
+        else
+          f->eax = file_write (fn->file, (void *) args[2], args[3]);
+      }
       else if(args[0] == SYS_SEEK)
         file_seek (fn->file, args[2]);
       else if(args[0] == SYS_TELL)
         f->eax = file_tell (fn->file);
+      else if(args[0] == SYS_ISDIR) {
+        struct file *file_object = fn->file;
+        f->eax = inode_get_isdir(get_file_inode(file_object));
+      }
+      else if(args[0] == SYS_INUMBER)
+        f->eax = inode_get_inumber (get_file_inode(fn->file));
+      else if(args[0] == SYS_READDIR) {
+        if(!inode_get_isdir(get_file_inode(fn->file)))
+          f->eax = false;
+        struct dir *dir = dir_open (get_file_inode(fn->file));
+        f->eax = dir_readdir(dir, (char *) args[2]);
+      }
       else if(args[0] == SYS_CLOSE) {
         file_close (fn->file);
         list_remove (&fn->elem);
         free (fn);
       }
     }
-    lock_release (&file_lock);
   }
 }
 

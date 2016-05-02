@@ -8,6 +8,7 @@
 #include "filesys/free-map.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "filesys/buffer-cache.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -24,6 +25,7 @@ struct inode_disk
     block_sector_t indirect;              /* Indirect pointer. */
     block_sector_t doubly_indirect;       /* Doubly indirect pointer. */
     block_sector_t parent_dir;            /* inode_disk sector of the parent directory. */
+    uint32_t num_files;                   /* The number of subdirectories or files. */
     bool is_dir;                          /* True if this file is a directory. */
     off_t length;                         /* File size in bytes. */
     unsigned magic;                       /* Note: magic has a different offset now. */
@@ -216,7 +218,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -229,10 +231,11 @@ inode_create (block_sector_t sector, off_t length)
 
   disk_inode = buffer_cache_get (sector);
   disk_inode->length = 0;
+  disk_inode->is_dir = is_dir;
+  disk_inode->num_files = 0;
   disk_inode->magic = INODE_MAGIC;
   success = extend_inode_length (disk_inode, length);
   buffer_cache_release (disk_inode, true);
-
   return success;
 }
 
@@ -510,4 +513,48 @@ read_from_sectors (size_t start, block_sector_t *sectors,
   }
 
   return true;
+}
+
+block_sector_t 
+inode_get_sector(struct inode *inode) {
+  return inode->sector;
+}
+struct inode_disk *
+inode_get_parentdisk(struct inode *inode) {
+  struct inode_disk *cur_disk = buffer_cache_get(inode->sector);
+  return buffer_cache_get(cur_disk->parent_dir);
+}
+
+block_sector_t
+inode_get_parentsector(struct inode *inode) {
+  struct inode_disk *cur_disk = buffer_cache_get(inode->sector);
+  return cur_disk->parent_dir;
+}
+
+bool 
+inode_get_isdir(struct inode *inode) {
+  struct inode_disk *disk_node = buffer_cache_get (inode->sector);
+  return disk_node->is_dir;
+}
+
+void 
+increment_file_cnt(struct inode_disk * disk_node){
+  disk_node->num_files += 1;
+}
+
+void 
+decrement_file_cnt(struct inode_disk * disk_node){
+  disk_node->num_files -= 1;
+}
+
+uint32_t 
+inode_get_file_cnt(struct inode *inode) {
+  struct inode_disk *disk_inode = NULL;
+  disk_inode = buffer_cache_get (inode->sector);
+  return disk_inode->num_files;
+}
+
+struct inode *
+inode_malloc(void) {
+  return (struct inode*)malloc(sizeof(struct inode));
 }
