@@ -90,7 +90,7 @@ filesys_create (const char *name, off_t initial_size, bool is_dir)
 struct file *
 filesys_open (const char *name)
 {
-  struct inode *save_inode = inode_malloc();
+  struct inode *save_inode = NULL;
   bool success = follow_path(name, &save_inode);
   
   struct file *result;
@@ -111,7 +111,7 @@ bool
 filesys_remove (const char *name) 
 {
   struct dir *dir;
-  struct inode *save_inode = inode_malloc();
+  struct inode *save_inode = NULL;
   bool success = follow_path(name, &save_inode);
   char *filename = malloc(sizeof(char) * (NAME_MAX + 1 ));
   struct inode_disk *parent_disk = inode_get_parentdisk(save_inode);
