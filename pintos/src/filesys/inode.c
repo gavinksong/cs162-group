@@ -96,7 +96,7 @@ inode_map_sectors (const struct inode_disk *inode,
   
   if (start < NUM_DIRECT) {
     sectors = (block_sector_t *) inode->direct;
-    apply(NUM_DIRECT);
+    apply (NUM_DIRECT);
   }
   if (end <= start)
     return true;
@@ -104,8 +104,8 @@ inode_map_sectors (const struct inode_disk *inode,
   table_start = NUM_DIRECT;
   if (start < NUM_DIRECT + NUM_INDIRECT) {
     sectors = buffer_cache_get (inode->indirect);
-    apply(NUM_INDIRECT);
-    buffer_cache_release (sectors);
+    apply (NUM_INDIRECT);
+    buffer_cache_release (sectors, true);
   }
   if (end <= start)
     return true;
@@ -115,10 +115,10 @@ inode_map_sectors (const struct inode_disk *inode,
   indirects = buffer_cache_get (inode->doubly_indirect);
   while (end <= start) {
     sectors = buffer_cache_get (indirects[i++]);
-    apply(NUM_INDIRECT);
-    buffer_cache_release (sectors);
+    apply (NUM_INDIRECT);
+    buffer_cache_release (sectors, true);
   }
-  buffer_cache_release (indirects);
+  buffer_cache_release (indirects, false);
 
 #undef apply
   return true;
@@ -231,7 +231,7 @@ inode_create (block_sector_t sector, off_t length)
   disk_inode->length = 0;
   disk_inode->magic = INODE_MAGIC;
   success = extend_inode_length (disk_inode, length);
-  buffer_cache_release (disk_inode);
+  buffer_cache_release (disk_inode, true);
 
   return success;
 }
@@ -308,7 +308,7 @@ inode_close (struct inode *inode)
         {
           struct inode_disk *data = buffer_cache_get (inode->sector);
           shorten_inode_length (data, 0);
-          buffer_cache_release (data);
+          buffer_cache_release (data, true);
           free_map_release (inode->sector, 1);
         }
 
@@ -326,7 +326,7 @@ inode_remove (struct inode *inode)
 }
 
 struct buffer_aux {
-  const uint8_t *buffer;
+  void *buffer;
   off_t size;
   off_t pos;
   off_t offset;
@@ -353,7 +353,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   aux->pos = 0;
 
   inode_map_sectors (disk_inode, read_from_sectors, start, end, aux);
-  buffer_cache_release (disk_inode);
+  buffer_cache_release (disk_inode, false);
   free (aux);
 
   return size;
@@ -385,7 +385,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   aux->pos = 0;
 
   inode_map_sectors (disk_inode, write_to_sectors, start, end, aux);
-  buffer_cache_release (disk_inode);
+  buffer_cache_release (disk_inode, true);
   free (aux);
 
   return size;
@@ -417,7 +417,7 @@ inode_length (const struct inode *inode)
 {
   struct inode_disk *data = buffer_cache_get (inode->sector);
   off_t length = data->length;
-  buffer_cache_release (data);
+  buffer_cache_release (data, false);
   return length;
 }
 
@@ -464,7 +464,7 @@ write_to_sectors (size_t start, block_sector_t *sectors,
     /* Load sector into cache, then partially copy into caller's buffer. */
     void *cache_block = buffer_cache_get (sector);
     memcpy (cache_block + sector_ofs, aux->buffer + aux->pos, chunk_size);
-    buffer_cache_release (cache_block);
+    buffer_cache_release (cache_block, true);
 
     /* Advance. */
     aux->offset += chunk_size;
@@ -502,7 +502,7 @@ read_from_sectors (size_t start, block_sector_t *sectors,
     /* Load sector into cache, then partially copy into caller's buffer. */
     void *cache_block = buffer_cache_get (sector);
     memcpy (aux->buffer + aux->pos, cache_block + sector_ofs, chunk_size);
-    buffer_cache_release (cache_block);
+    buffer_cache_release (cache_block, false);
 
     /* Advance. */
     aux->offset += chunk_size;

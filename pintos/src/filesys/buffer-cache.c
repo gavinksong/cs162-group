@@ -28,6 +28,7 @@ struct entry
     size_t index;
     struct lock lock;
     struct hash_elem elem;
+    bool dirty;
   };
 
 /* Initializes the buffer cache. */
@@ -61,6 +62,7 @@ buffer_cache_get (block_sector_t sector)
   struct hash_elem *found = hash_insert (&hashmap, &e->elem);
   if (found == NULL) {
     lock_init (&e->lock);
+    e->dirty = false;
 
     while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
       bitmap_reset (refbits, clock_hand);
@@ -77,7 +79,6 @@ buffer_cache_get (block_sector_t sector)
     e->index = clock_hand;
     entries[e->index] = e;
     clock_hand = (clock_hand + 1) % NUM_SECTORS;
-    block_read (fs_device, e->sector, index_to_block (e->index));
   }
   else {
     free (e);
@@ -86,16 +87,20 @@ buffer_cache_get (block_sector_t sector)
 
   lock_acquire (&e->lock);
   bitmap_mark (usebits, e->index);
-
   lock_release (&cache_lock);
+
+  if (found == NULL)
+    block_read (fs_device, e->sector, index_to_block (e->index));
 
   return index_to_block (e->index);
 }
 
 /* Releases the lock on the cache entry associated with
-   the block at CACHE_BLOCK. */
+   the block at CACHE_BLOCK. The parameter DIRTY should
+   be marked true if the contents of CACHE_BLOCK were
+   modified since it was returned by buffer_cache_get (). */
 void
-buffer_cache_release (void *cache_block)
+buffer_cache_release (void *cache_block, bool dirty)
 {
   int index = (cache_block - cache_base) / BLOCK_SECTOR_SIZE;
 
@@ -103,6 +108,9 @@ buffer_cache_release (void *cache_block)
   ASSERT (lock_held_by_current_thread (&entries[index]->lock));
 
   lock_acquire (&cache_lock);
+
+  if (dirty)
+    entries[index]->dirty = true;
 
   lock_release (&entries[index]->lock);
   bitmap_mark (refbits, index);
@@ -112,14 +120,23 @@ buffer_cache_release (void *cache_block)
   lock_release (&cache_lock);
 }
 
-/* Releases the entry associated with the block at *CACHE_BLOCK.
-   Then, stores pointer to cache block holding data from SECTOR in
-   *CACHE_BLOCK. */
+/* Flushes all dirty cache entries to disk. */
 void
-buffer_cache_switch (block_sector_t sector, void **cache_block)
+buffer_cache_flush (void)
 {
-  buffer_cache_release (*cache_block);
-  *cache_block = buffer_cache_get (sector);
+  lock_acquire (&cache_lock);
+  size_t i = 0;
+  for (; i < NUM_SECTORS; i++) {
+    if (entries[i] != NULL) {
+      lock_acquire (&entries[i]->lock);
+      if (entries[i]->dirty) {
+        block_write (fs_device, entries[i]->sector, index_to_block (i));
+        entries[i]->dirty = false;
+      }
+      lock_release (&entries[i]->lock);
+    }
+  }
+  lock_release (&cache_lock);
 }
 
 /* Reads SECTOR into BUFFER. */
@@ -128,7 +145,7 @@ buffer_cache_read (block_sector_t sector, void *buffer)
 {
   void *cache_block = buffer_cache_get (sector);
   memcpy (buffer, cache_block, BLOCK_SECTOR_SIZE);
-  buffer_cache_release (cache_block);
+  buffer_cache_release (cache_block, false);
 }
 
 /* Writes BLOCK_SECTOR_SIZE bytes from BUFFER into the
@@ -138,7 +155,7 @@ buffer_cache_write (block_sector_t sector, void *buffer)
 {
   void *cache_block = buffer_cache_get (sector);
   memcpy (cache_block, buffer, BLOCK_SECTOR_SIZE);
-  buffer_cache_release (cache_block);
+  buffer_cache_release (cache_block, true);
 }
 
 /* Returns a pointer to the (INDEX + 1)th cache block. */

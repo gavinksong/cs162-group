@@ -3,12 +3,12 @@
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include "devices/pit.h"
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "lib/kernel/list.h"
-#include <stdbool.h>
 
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -276,9 +276,10 @@ real_time_delay (int64_t num, int32_t denom)
 
 /* Compares the thread alarm_time values of list elements
    A and B. Returns true iff A is less than B. */
-bool compare_alarm (const struct list_elem *a,
-                      const struct list_elem *b,
-                      void *aux)
+static bool
+compare_alarm (const struct list_elem *a,
+               const struct list_elem *b,
+               void *aux UNUSED)
 {
   struct thread *s = list_entry(a, struct thread, elem);
   struct thread *t = list_entry(b, struct thread, elem);
