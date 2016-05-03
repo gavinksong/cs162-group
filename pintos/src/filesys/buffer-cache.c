@@ -26,7 +26,7 @@ struct entry
   {
     block_sector_t sector;
     size_t index;
-    struct lock lock;
+    struct condition queue;
     struct hash_elem elem;
     bool dirty;
   };
@@ -45,7 +45,7 @@ buffer_cache_init (void)
 }
 
 /* Checks if SECTOR is in the buffer cache, and if it is not,
-   loads SECTOR into a cache block. Locks the corresponding
+   loads SECTOR into a cache block. "Locks" the corresponding
    cache entry until buffer_cache_release () is called.
    Returns the cache block containing the data from SECTOR. */
 void *
@@ -61,7 +61,7 @@ buffer_cache_get (block_sector_t sector)
 
   struct hash_elem *found = hash_insert (&hashmap, &e->elem);
   if (found == NULL) {
-    lock_init (&e->lock);
+    cond_init (&e->queue);
     e->dirty = false;
 
     while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
@@ -85,7 +85,9 @@ buffer_cache_get (block_sector_t sector)
     e = hash_entry (found, struct entry, elem);
   }
 
-  lock_acquire (&e->lock);
+  while (bitmap_test (usebits, e->index)) {
+    cond_wait (&e->queue, &cache_lock);
+  }
   bitmap_mark (usebits, e->index);
   lock_release (&cache_lock);
 
@@ -95,7 +97,7 @@ buffer_cache_get (block_sector_t sector)
   return index_to_block (e->index);
 }
 
-/* Releases the lock on the cache entry associated with
+/* Releases the "lock" on the cache entry associated with
    the block at CACHE_BLOCK. The parameter DIRTY should
    be marked true if the contents of CACHE_BLOCK were
    modified since it was returned by buffer_cache_get (). */
@@ -105,16 +107,16 @@ buffer_cache_release (void *cache_block, bool dirty)
   int index = (cache_block - cache_base) / BLOCK_SECTOR_SIZE;
 
   ASSERT (index >= 0 && index < NUM_SECTORS);
-  ASSERT (lock_held_by_current_thread (&entries[index]->lock));
+  ASSERT (bitmap_test (usebits, index));
 
   lock_acquire (&cache_lock);
 
   if (dirty)
     entries[index]->dirty = true;
 
-  lock_release (&entries[index]->lock);
   bitmap_mark (refbits, index);
   bitmap_reset (usebits, index);
+  cond_signal (&entries[index]->queue, &cache_lock);
   cond_signal (&cache_queue, &cache_lock);
 
   lock_release (&cache_lock);
@@ -124,18 +126,18 @@ buffer_cache_release (void *cache_block, bool dirty)
 void
 buffer_cache_flush (void)
 {
-  lock_acquire (&cache_lock);
   size_t i = 0;
-  for (; i < NUM_SECTORS; i++) {
-    if (entries[i] != NULL) {
-      lock_acquire (&entries[i]->lock);
-      if (entries[i]->dirty) {
-        block_write (fs_device, entries[i]->sector, index_to_block (i));
-        entries[i]->dirty = false;
-      }
-      lock_release (&entries[i]->lock);
+  lock_acquire (&cache_lock);
+  for (; i < NUM_SECTORS; i++) 
+    {
+      if (entries[i] != NULL
+          && entries[i]->dirty
+          && !bitmap_test (usebits, i))
+        {
+          block_write (fs_device, entries[i]->sector, index_to_block (i));
+          entries[i]->dirty = false;
+        }
     }
-  }
   lock_release (&cache_lock);
 }
 
@@ -177,3 +179,6 @@ less_function (const struct hash_elem *a,
 {
   return hash_function (a, NULL) < hash_function (b, NULL);
 }
+
+#undef lock_entry
+#undef release_entry
