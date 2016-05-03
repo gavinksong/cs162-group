@@ -209,7 +209,6 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
-  buffer_cache_init ();
   thread_current()->cwd = inode_open(ROOT_DIR_SECTOR);
 }
 

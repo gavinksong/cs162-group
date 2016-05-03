@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "filesys/buffer-cache.h"
 #include "threads/thread.h"
 
 /* Partition that contains the file system. */
@@ -25,6 +26,7 @@ filesys_init (bool format)
     PANIC ("No file system device found, can't initialize file system.");
 
   inode_init ();
+  buffer_cache_init ();
   free_map_init ();
 
   if (format) 
@@ -41,6 +43,7 @@ void
 filesys_done (void) 
 {
   free_map_close ();
+  buffer_cache_flush ();
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.

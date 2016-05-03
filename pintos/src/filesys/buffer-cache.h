@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include "devices/block.h"
 
-#define WRITE_DELAY 2000
-
 void buffer_cache_init (void);
 
 /* Core interface. */

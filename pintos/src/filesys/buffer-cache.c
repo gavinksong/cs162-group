@@ -3,11 +3,14 @@
 #include <hash.h>
 #include <string.h>
 #include "filesys/filesys.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/synch.h"
+#include "devices/timer.h"
 
 #define NUM_SECTORS 64
+#define WRITE_DELAY 2000
 
 static void *cache_base;                        /* Points to the base of the buffer cache. */
 static size_t clock_hand;                       /* Used for clock replacement. */
@@ -21,6 +24,7 @@ static struct condition cache_queue;            /* Block if all cache entries ar
 static void *index_to_block (size_t index);
 unsigned hash_function (const struct hash_elem *e, void *aux);
 bool less_function (const struct hash_elem *a, const struct hash_elem *b, void *aux);
+void write_behind_thread_func (void *aux);
 
 struct entry
   {
@@ -42,6 +46,7 @@ buffer_cache_init (void)
   hash_init (&hashmap, hash_function, less_function, NULL);
   lock_init (&cache_lock);
   cond_init (&cache_queue);
+  thread_create ("write-behind", PRI_MAX, write_behind_thread_func, NULL);
 }
 
 /* Checks if SECTOR is in the buffer cache, and if it is not,
@@ -180,5 +185,11 @@ less_function (const struct hash_elem *a,
   return hash_function (a, NULL) < hash_function (b, NULL);
 }
 
-#undef lock_entry
-#undef release_entry
+/* High-priority write-behind thread. */
+void
+write_behind_thread_func (void *aux UNUSED) {
+  while (true) {
+    timer_msleep (WRITE_DELAY);
+    buffer_cache_flush ();
+  }
+}
