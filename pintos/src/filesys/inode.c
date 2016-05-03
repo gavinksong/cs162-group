@@ -288,10 +288,13 @@ inode_reopen (struct inode *inode)
 struct inode *
 inode_open_parent (struct inode *inode)
 {
-  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-  block_sector_t parent = disk_inode->parent;
-  buffer_cache_release (disk_inode, false);
-  return inode_open (parent);
+  if (inode != NULL) {
+    struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+    block_sector_t parent = disk_inode->parent;
+    buffer_cache_release (disk_inode, false);
+    inode = inode_open (parent);
+  }
+  return inode;
 }
 
 /* Returns INODE's inode number. */

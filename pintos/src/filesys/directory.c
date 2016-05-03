@@ -12,6 +12,7 @@ struct dir
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
+    bool unused;                        /* UNUSED. */
   };
 
 /* A single directory entry. */
@@ -243,13 +244,4 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
-}
-
-bool
-dir_chdir (struct dir *dir)
-{
-  struct thread *t = thread_current ();
-  inode_close (t->cwd);
-  inode_reopen (t->cwd = dir->inode);
-  return true;
 }

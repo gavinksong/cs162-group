@@ -107,12 +107,20 @@ filesys_chdir (const char *path)
 {
   struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
-  bool success = follow_path (path, &dir, filename)
-                 && filename[0] == '\0'
-                 && dir_chdir (dir);
+  struct inode *inode = NULL;
+  struct thread *t = thread_current ();
+
+  if (follow_path (path, &dir, filename))
+    dir_lookup (dir, filename, &inode);
   dir_close (dir);
 
-  return success;
+  if (inode != NULL) {
+    inode_close (t->cwd);
+    inode_reopen (t->cwd = inode);
+    return true;
+  }
+  
+  return false;
 }
 
 /* Formats the file system. */
@@ -128,7 +136,7 @@ do_format (void)
 }
 
 /* Stores the name of the file referenced by PATH in
-   FILENAME, and the directory in DIR.
+   FILENAME, and the parent directory in DIR.
    Returns false if the path is invalid or an error occurs,
    true otherwise. */
 static bool
@@ -167,9 +175,11 @@ follow_path (const char *path, struct dir **dir,
   if (get_next_part (filename, &path) != 0)
     return false;
 
-  /* If the file is a directory, FILENAME is empty. */
-  if (inode == next)
-    filename[0] = '\0';
+  if (inode == next) {
+    next = inode_open_parent (inode);
+    inode_close (inode);
+    inode = next;
+  }
 
   return (*dir = dir_open (inode)) != NULL;
 }
