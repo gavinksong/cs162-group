@@ -457,6 +457,26 @@ inode_num_files (const struct inode *inode)
   return num_files;
 }
 
+void
+increment_fn_cnt(const struct inode *inode)
+{
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  struct inode_disk *parent_disk = buffer_cache_get(disk_inode->parent);
+  parent_disk->num_files += 1;
+  buffer_cache_release (disk_inode, false);
+  buffer_cache_release (parent_disk, false);
+}
+
+void
+decrement_fn_cnt(const struct inode *inode)
+{
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  struct inode_disk *parent_disk = buffer_cache_get(disk_inode->parent);
+  parent_disk->num_files -= 1;
+  buffer_cache_release (disk_inode, false);
+  buffer_cache_release (parent_disk, false);
+}
+
 static bool
 allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)
