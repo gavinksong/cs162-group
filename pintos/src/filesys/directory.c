@@ -213,11 +213,14 @@ dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
-  /* should not remove cwd. */
+  /* Should not remove cwd. */
   if (inode == thread_current ()->cwd)
     goto done;
-  /* shoud not remove a non-empty directory. */
+  /* Shoud not remove a non-empty directory. */
   if (inode_num_files (inode) != 0)
+    goto done;
+  /* Should not remove a opened directory. */
+  if (get_open_cnt (inode) != 0)
     goto done;
   /* Erase directory entry. */
   e.in_use = false;

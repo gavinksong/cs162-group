@@ -25,4 +25,5 @@ uint32_t inode_num_files (const struct inode *);
 void inode_set_parent (const struct inode *, block_sector_t);
 void increment_fn_cnt (const struct inode *);
 void decrement_fn_cnt (const struct inode *);
+int get_open_cnt (const struct inode *);
 #endif /* filesys/inode.h */

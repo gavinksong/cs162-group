@@ -485,6 +485,11 @@ decrement_fn_cnt(const struct inode *inode)
   buffer_cache_release (parent_disk, false);
 }
 
+int
+get_open_cnt (const struct inode *inode) {
+  return inode->open_cnt;
+}
+
 static bool
 allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)

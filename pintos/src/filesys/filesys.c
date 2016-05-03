@@ -56,6 +56,7 @@ filesys_create (const char *name, off_t initial_size, bool isdir)
   block_sector_t inode_sector = 0;
   struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
+  
   bool success = follow_path (name, &dir, filename)
                  && free_map_allocate (1, &inode_sector)
                  && inode_create (inode_sector, initial_size, isdir)
@@ -78,11 +79,16 @@ filesys_open (const char *name)
   struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   struct inode *inode = NULL;
+  if (strlen(name) == 1) {
+    if (strcmp(name, "/") == 0)
+      return (struct file *) dir_open_root ();
+    else if(strcmp(name, ".") == 0)
+      return (struct file *) dir_open (thread_current()->cwd);
+  }  
 
   if (follow_path (name, &dir, filename))
     dir_lookup (dir, filename, &inode);
   dir_close (dir);
-
   return file_open (inode);
 }
 
