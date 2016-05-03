@@ -146,27 +146,19 @@ follow_path (const char *path, struct dir **dir,
   struct inode *inode;
   struct inode *next;
 
+  strlcpy (filename, ".", 2);
+
   if (path[0] == '/')
     inode = inode_open (ROOT_DIR_SECTOR);
   else
     inode = inode_reopen (thread_current ()->cwd);
 
-  while (get_next_part (filename, &path) == 1) {
-    if (strcmp (filename, "..") == 0) {
-      next = inode_open_parent (inode);
-      if (next == NULL)
-        return false;
-    }
-    else if (strcmp (filename, ".") == 0) {
-      next = inode_reopen (inode);
-    }
-    else {
-      *dir = dir_open (inode_reopen (inode));
-      dir_lookup (*dir, filename, &next);
-      dir_close (*dir);
-      if (next == NULL || !inode_isdir (next))
-        break;
-    }
+  while (inode_isdir (inode) && get_next_part (filename, &path) == 1) {
+    *dir = dir_open (inode_reopen (inode));
+    dir_lookup (*dir, filename, &next);
+    dir_close (*dir);
+    if (next == NULL)
+      break;
     inode_close (inode);
     inode = next;
   }
@@ -175,13 +167,9 @@ follow_path (const char *path, struct dir **dir,
   if (get_next_part (filename, &path) != 0)
     return false;
 
-  if (inode == next) {
-    next = inode_open_parent (inode);
-    inode_close (inode);
-    inode = next;
-  }
-
-  return (*dir = dir_open (inode)) != NULL;
+  *dir = dir_open (inode_open_parent (inode));
+  inode_close (inode);
+  return *dir != NULL;
 }
 
 static int
