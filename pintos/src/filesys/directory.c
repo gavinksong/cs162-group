@@ -176,8 +176,12 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
   
-  if(success)
-    increment_fn_cnt(dir->inode);
+  if(success) {
+    struct inode *inode = inode_open (inode_sector);
+    inode_set_parent (inode, inode_get_inumber (dir->inode));
+    inode_close (inode);
+    increment_fn_cnt (dir->inode);
+  }
 
  done:
   return success;
@@ -206,10 +210,10 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
   /* should not remove cwd. */
-  if(inode == thread_current()->cwd)
+  if (inode == thread_current ()->cwd)
     goto done;
   /* shoud not remove a non-empty directory. */
-  if(inode_num_files(inode) != 0)
+  if (inode_num_files (inode) != 0)
     goto done;
   /* Erase directory entry. */
   e.in_use = false;
@@ -219,7 +223,7 @@ dir_remove (struct dir *dir, const char *name)
   /* Remove inode. */
   inode_remove (inode);
   success = true;
-  decrement_fn_cnt(dir->inode);
+  decrement_fn_cnt (dir->inode);
 
  done:
   inode_close (inode);

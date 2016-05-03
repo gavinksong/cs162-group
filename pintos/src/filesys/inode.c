@@ -460,6 +460,14 @@ inode_num_files (const struct inode *inode)
 }
 
 void
+inode_set_parent (const struct inode *inode, block_sector_t parent)
+{
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  disk_inode->parent = parent;
+  buffer_cache_release (disk_inode, true);
+}
+
+void
 increment_fn_cnt(const struct inode *inode)
 {
   struct inode *parent_inode = inode_open_parent(inode);

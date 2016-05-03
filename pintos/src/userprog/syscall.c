@@ -134,9 +134,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if (args[0] == SYS_FILESIZE)
       f->eax = file_length (fn->file);
     else if (args[0] == SYS_READ)
-      f->eax = file_read (fn->file, (void *) args[2], args[3]);
+      f->eax = file_isdir (fn->file) ? -1 : file_read (fn->file, (void *) args[2], args[3]);
     else if(args[0] == SYS_WRITE)
-      f->eax = file_write (fn->file, (void *) args[2], args[3]);
+      f->eax = file_isdir (fn->file) ? -1 : file_write (fn->file, (void *) args[2], args[3]);
     else if(args[0] == SYS_SEEK)
       file_seek (fn->file, args[2]);
     else if(args[0] == SYS_TELL)
@@ -146,7 +146,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if(args[0] == SYS_INUMBER)
       f->eax = file_inumber (fn->file);
     else if(args[0] == SYS_READDIR)
-      f->eax = dir_readdir((struct dir*) fn->file, (char *) args[2]);
+      f->eax = dir_readdir ((struct dir *) fn->file, (char *) args[2]);
     else if(args[0] == SYS_CLOSE) {
       file_close (fn->file);
       list_remove (&fn->elem);

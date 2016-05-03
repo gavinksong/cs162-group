@@ -119,7 +119,7 @@ filesys_chdir (const char *path)
     inode_reopen (t->cwd = inode);
     return true;
   }
-  
+
   return false;
 }
 
