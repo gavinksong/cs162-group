@@ -132,11 +132,7 @@ main (void)
   
   /* Run actions specified on kernel command line. */
   run_actions (argv);
-
-#ifdef FILESYS
-  buffer_cache_flush ();
-#endif
-
+  
   /* Finish up. */
   shutdown ();
   thread_exit ();

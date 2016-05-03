@@ -209,7 +209,6 @@ void
 inode_init (void) 
 {
   list_init (&open_inodes);
-  buffer_cache_init ();
   thread_current()->cwd = inode_open(ROOT_DIR_SECTOR);
 }
 
@@ -479,7 +478,15 @@ static bool
 allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)
 {
-  return free_map_allocate_nc (cnt, sectors);
+  bool success = free_map_allocate_nc (cnt, sectors);
+  if (success) {
+    void *zeros = calloc (BLOCK_SECTOR_SIZE, 1);
+    int i = 0;
+    while (i < cnt)
+      buffer_cache_write (sectors[i++], zeros);
+    free (zeros);
+  }
+  return success;
 }
 
 static bool
