@@ -79,12 +79,6 @@ filesys_open (const char *name)
   struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   struct inode *inode = NULL;
-  if (strlen(name) == 1) {
-    if (strcmp(name, "/") == 0)
-      return (struct file *) dir_open_root ();
-    else if(strcmp(name, ".") == 0)
-      return (struct file *) dir_open (thread_current()->cwd);
-  }  
 
   if (follow_path (name, &dir, filename))
     dir_lookup (dir, filename, &inode);
@@ -152,18 +146,16 @@ follow_path (const char *path, struct dir **dir,
   struct inode *inode;
   struct inode *next;
 
-  strlcpy (filename, ".", 2);
-
   if (path[0] == '/')
-    inode = inode_open (ROOT_DIR_SECTOR);
+    inode = next = inode_open (ROOT_DIR_SECTOR);
   else
-    inode = inode_reopen (thread_current ()->cwd);
+    inode = next = inode_reopen (thread_current ()->cwd);
 
-  while (inode_isdir (inode) && get_next_part (filename, &path) == 1) {
+  while (get_next_part (filename, &path) == 1) {
     *dir = dir_open (inode_reopen (inode));
     dir_lookup (*dir, filename, &next);
     dir_close (*dir);
-    if (next == NULL)
+    if (next == NULL || !inode_isdir (next))
       break;
     inode_close (inode);
     inode = next;
@@ -173,9 +165,11 @@ follow_path (const char *path, struct dir **dir,
   if (get_next_part (filename, &path) != 0)
     return false;
 
-  *dir = dir_open (inode_open_parent (inode));
-  inode_close (inode);
-  return *dir != NULL;
+  /* If INODE is a directory, set FILENAME to "." */
+  if (inode == next)
+    strlcpy (filename, ".", 2);
+
+  return (*dir = dir_open (inode)) != NULL;
 }
 
 static int
