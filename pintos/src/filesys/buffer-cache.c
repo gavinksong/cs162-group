@@ -131,7 +131,7 @@ buffer_cache_write (block_sector_t sector, void *buffer)
   lock_release (&cache_lock);
 
   void *cache_block = index_to_block (e->index);
-  memcpy (buffer, cache_block, BLOCK_SECTOR_SIZE);
+  memcpy (cache_block, buffer, BLOCK_SECTOR_SIZE);
   buffer_cache_release (cache_block, true);
 }
 
