@@ -22,6 +22,7 @@ static struct lock cache_lock;                  /* Acquire before accessing cach
 static struct condition cache_queue;            /* Block if all cache entries are in use. */
 
 static void *index_to_block (size_t index);
+static bool find_entry (block_sector_t sector, struct entry **);
 unsigned hash_function (const struct hash_elem *e, void *aux);
 bool less_function (const struct hash_elem *a, const struct hash_elem *b, void *aux);
 void write_behind_thread_func (void *aux);
@@ -56,48 +57,15 @@ buffer_cache_init (void)
 void *
 buffer_cache_get (block_sector_t sector)
 {
-  struct entry *e = malloc (sizeof (struct entry));
-  e->sector = sector;
+  struct entry *e;
+  bool cache_miss;
 
   lock_acquire (&cache_lock);
-  while (bitmap_all (usebits, 0, NUM_SECTORS)) {
-    cond_wait (&cache_queue, &cache_lock);
-  }
-
-  struct hash_elem *found = hash_insert (&hashmap, &e->elem);
-  if (found == NULL) {
-    cond_init (&e->queue);
-    e->dirty = false;
-
-    while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
-      bitmap_reset (refbits, clock_hand);
-      clock_hand = (clock_hand + 1) % NUM_SECTORS;
-    }
-
-    struct entry *old_entry = entries[clock_hand];
-    if (old_entry != NULL) {
-      block_write (fs_device, old_entry->sector, index_to_block (old_entry->index));
-      hash_delete (&hashmap, &old_entry->elem);
-      free (old_entry);
-    }
-
-    e->index = clock_hand;
-    entries[e->index] = e;
-    clock_hand = (clock_hand + 1) % NUM_SECTORS;
-  }
-  else {
-    free (e);
-    e = hash_entry (found, struct entry, elem);
-  }
-
-  while (bitmap_test (usebits, e->index)) {
-    cond_wait (&e->queue, &cache_lock);
-  }
-  bitmap_mark (usebits, e->index);
+  cache_miss = find_entry (sector, &e);
   lock_release (&cache_lock);
 
-  if (found == NULL)
-    block_read (fs_device, e->sector, index_to_block (e->index));
+  if (!cache_miss)
+    block_read (fs_device, sector, index_to_block (e->index));
 
   return index_to_block (e->index);
 }
@@ -133,16 +101,12 @@ buffer_cache_flush (void)
 {
   size_t i = 0;
   lock_acquire (&cache_lock);
-  for (; i < NUM_SECTORS; i++) 
-    {
-      if (entries[i] != NULL
-          && entries[i]->dirty
-          && !bitmap_test (usebits, i))
-        {
-          block_write (fs_device, entries[i]->sector, index_to_block (i));
-          entries[i]->dirty = false;
-        }
+  for (; i < NUM_SECTORS; i++) {
+    if (entries[i] != NULL && entries[i]->dirty && !bitmap_test (usebits, i)) {
+      block_write (fs_device, entries[i]->sector, index_to_block (i));
+      entries[i]->dirty = false;
     }
+  }
   lock_release (&cache_lock);
 }
 
@@ -160,8 +124,14 @@ buffer_cache_read (block_sector_t sector, void *buffer)
 void
 buffer_cache_write (block_sector_t sector, void *buffer)
 {
-  void *cache_block = buffer_cache_get (sector);
-  memcpy (cache_block, buffer, BLOCK_SECTOR_SIZE);
+  struct entry *e;
+
+  lock_acquire (&cache_lock);
+  find_entry (sector, &e);
+  lock_release (&cache_lock);
+
+  void *cache_block = index_to_block (e->index);
+  memcpy (buffer, cache_block, BLOCK_SECTOR_SIZE);
   buffer_cache_release (cache_block, true);
 }
 
@@ -169,6 +139,50 @@ buffer_cache_write (block_sector_t sector, void *buffer)
 static void *
 index_to_block (size_t index) {
   return cache_base + BLOCK_SECTOR_SIZE * index;
+}
+
+/* cache_lock should be acquired before calling this function.
+   Returns true if there was a cache hit, false otherwise. */
+static bool
+find_entry (block_sector_t sector, struct entry **entry)
+{
+  struct entry *e = malloc (sizeof (struct entry));
+  e->sector = sector;
+
+  while (bitmap_all (usebits, 0, NUM_SECTORS))
+    cond_wait (&cache_queue, &cache_lock);
+  
+  struct hash_elem *found = hash_insert (&hashmap, &e->elem);
+  if (found == NULL) {
+    while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
+      bitmap_reset (refbits, clock_hand);
+      clock_hand = (clock_hand + 1) % NUM_SECTORS;
+    }
+
+    struct entry *old_entry = entries[clock_hand];
+    if (old_entry != NULL) {
+      block_write (fs_device, old_entry->sector, index_to_block (old_entry->index));
+      hash_delete (&hashmap, &old_entry->elem);
+      free (old_entry);
+    }
+
+    cond_init (&e->queue);
+    e->dirty = false;
+    e->index = clock_hand;
+    entries[e->index] = e;
+    clock_hand = (clock_hand + 1) % NUM_SECTORS;
+  }
+  else {
+    free (e);
+    e = hash_entry (found, struct entry, elem);
+  }
+
+  while (bitmap_test (usebits, e->index))
+    cond_wait (&e->queue, &cache_lock);
+  bitmap_mark (usebits, e->index);
+  
+  *entry = e;
+  return (found != NULL);
 }
 
 unsigned
