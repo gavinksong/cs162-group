@@ -146,7 +146,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     else if(args[0] == SYS_INUMBER)
       f->eax = file_inumber (fn->file);
     else if(args[0] == SYS_READDIR)
-      barrier ();
+      f->eax = dir_readdir((struct dir*) fn->file, (char *) args[2]);
     else if(args[0] == SYS_CLOSE) {
       file_close (fn->file);
       list_remove (&fn->elem);

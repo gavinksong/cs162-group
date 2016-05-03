@@ -460,20 +460,18 @@ inode_num_files (const struct inode *inode)
 void
 increment_fn_cnt(const struct inode *inode)
 {
-  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-  struct inode_disk *parent_disk = buffer_cache_get(disk_inode->parent);
+  struct inode *parent_inode = inode_open_parent(inode);
+  struct inode_disk *parent_disk = buffer_cache_get(parent_inode->sector);
   parent_disk->num_files += 1;
-  buffer_cache_release (disk_inode, false);
   buffer_cache_release (parent_disk, false);
 }
 
 void
 decrement_fn_cnt(const struct inode *inode)
 {
-  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-  struct inode_disk *parent_disk = buffer_cache_get(disk_inode->parent);
+  struct inode *parent_inode = inode_open_parent(inode);
+  struct inode_disk *parent_disk = buffer_cache_get(parent_inode->sector);
   parent_disk->num_files -= 1;
-  buffer_cache_release (disk_inode, false);
   buffer_cache_release (parent_disk, false);
 }
 
