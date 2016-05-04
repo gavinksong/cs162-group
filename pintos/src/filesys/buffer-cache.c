@@ -21,8 +21,6 @@ static struct hash hashmap;                     /* Maps sector indices to cache 
 static struct lock cache_lock;                  /* Acquire before accessing cache metadata. */
 static struct condition cache_queue;            /* Block if all cache entries are in use. */
 
-
-
 static void *index_to_block (size_t index);
 static bool find_entry (block_sector_t sector, struct entry **);
 unsigned hash_function (const struct hash_elem *e, void *aux);

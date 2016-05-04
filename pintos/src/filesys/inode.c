@@ -121,7 +121,7 @@ inode_map_sectors (const struct inode_disk *inode,
   size_t i = (start - NUM_DIRECT) / NUM_INDIRECT - 1;
   table_start = NUM_DIRECT + (i + 1) * NUM_INDIRECT;
   indirects = buffer_cache_get (inode->doubly_indirect);
-  while (end >= start) {
+  while (start < end) {
     sectors = buffer_cache_get (indirects[i++]);
     apply (NUM_INDIRECT);
     buffer_cache_release (sectors, true);
@@ -153,9 +153,10 @@ shorten_inode_length (struct inode_disk *inode, off_t length)
 
   if (border < end) {
     size_t i = (start > border) ? (start - border) / NUM_INDIRECT : 0;
-    size_t cnt = (end - border) / NUM_INDIRECT - i;
+    size_t cnt = (end - border) / NUM_INDIRECT - i + 1;
     block_sector_t *indirects = buffer_cache_get (inode->doubly_indirect);
     free_map_release_nc (&indirects[i], cnt);
+    buffer_cache_release (indirects, false);
   }
 
   if (start <= border && border < end)
@@ -195,9 +196,10 @@ extend_inode_length (struct inode_disk *inode, off_t length)
 
   if (border < end) {
     size_t i = (start > border) ? (start - border) / NUM_INDIRECT : 0;
-    size_t cnt = (end - border) / NUM_INDIRECT - i;
+    size_t cnt = (end - border) / NUM_INDIRECT - i + 1;
     block_sector_t *indirects = buffer_cache_get (inode->doubly_indirect);
     free_map_allocate_nc (cnt, &indirects[i]);
+    buffer_cache_release (indirects, false);
   }
 
   inode_map_sectors (inode, allocate_sectors, start, end, NULL);
