@@ -28,14 +28,14 @@ bool valid_addr (void *uaddr);
 struct lock file_lock;
 
 void
-syscall_init (void) 
+syscall_init (void)
 {
   lock_init (&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f UNUSED)
 {
   uint32_t* args = ((uint32_t*) f->esp);
 
@@ -48,7 +48,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CREATE:
     case SYS_SEEK:
     case SYS_READDIR:
-      check_ptr (&args[2], sizeof (uint32_t));
+    check_ptr (&args[2], sizeof (uint32_t));
     case SYS_PRACTICE:
     case SYS_EXIT:
     case SYS_EXEC:
@@ -62,6 +62,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_MKDIR:
     case SYS_CHDIR:
     case SYS_CLOSE:
+    case SYS_BUFFER_STAT:
       check_ptr (&args[1], sizeof (uint32_t));
   }
 
@@ -151,6 +152,16 @@ syscall_handler (struct intr_frame *f UNUSED)
       file_close (fn->file);
       list_remove (&fn->elem);
       free (fn);
+    }
+    else if(args[0] == SYS_BUFFER_STAT){
+      if (args[1] == 0)
+        f->eax = cache_total;
+      else if (args[1] == 1)
+        f->eax = cache_hit;
+      else if (args [1] == 2)
+        f->eax = nblock_read;
+      else if (args [1] == 3)
+        f->eax = nblock_write;
     }
   }
 }

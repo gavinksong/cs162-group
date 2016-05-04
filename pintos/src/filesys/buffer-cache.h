@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include "devices/block.h"
 
+/* Counters for Testing */
+size_t cache_total;                      /* Total requests to cache */
+size_t cache_hit;                        /* Cache hits */
+size_t nblock_read;                      /* Number of block_read */
+size_t nblock_write;                     /* Number of block_write */
+
 void buffer_cache_init (void);
 
 /* Core interface. */

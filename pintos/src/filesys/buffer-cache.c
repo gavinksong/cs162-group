@@ -21,6 +21,8 @@ static struct hash hashmap;                     /* Maps sector indices to cache 
 static struct lock cache_lock;                  /* Acquire before accessing cache metadata. */
 static struct condition cache_queue;            /* Block if all cache entries are in use. */
 
+
+
 static void *index_to_block (size_t index);
 static bool find_entry (block_sector_t sector, struct entry **);
 unsigned hash_function (const struct hash_elem *e, void *aux);
@@ -38,7 +40,7 @@ struct entry
 
 /* Initializes the buffer cache. */
 void
-buffer_cache_init (void) 
+buffer_cache_init (void)
 {
   cache_base = palloc_get_multiple (PAL_ASSERT, 8);
   clock_hand = 0;
@@ -48,6 +50,12 @@ buffer_cache_init (void)
   lock_init (&cache_lock);
   cond_init (&cache_queue);
   thread_create ("write-behind", PRI_MAX, write_behind_thread_func, NULL);
+
+  // Testing counters
+  cache_total = 0;
+  cache_hit = 0;
+  nblock_read = 0;
+  nblock_write = 0;
 }
 
 /* Checks if SECTOR is in the buffer cache, and if it is not,
@@ -66,6 +74,7 @@ buffer_cache_get (block_sector_t sector)
 
   if (!cache_miss)
     block_read (fs_device, sector, index_to_block (e->index));
+    nblock_read ++;
 
   return index_to_block (e->index);
 }
@@ -104,6 +113,8 @@ buffer_cache_flush (void)
   for (; i < NUM_SECTORS; i++)
     if (entries[i] != NULL && entries[i]->dirty && !bitmap_test (usebits, i)) {
       block_write (fs_device, entries[i]->sector, index_to_block (i));
+      nblock_write ++;
+
       entries[i]->dirty = false;
     }
   lock_release (&cache_lock);
@@ -145,12 +156,13 @@ index_to_block (size_t index) {
 static bool
 find_entry (block_sector_t sector, struct entry **entry)
 {
+  cache_total ++;
   struct entry *e = malloc (sizeof (struct entry));
   e->sector = sector;
 
   while (bitmap_all (usebits, 0, NUM_SECTORS))
     cond_wait (&cache_queue, &cache_lock);
-  
+
   struct hash_elem *found = hash_insert (&hashmap, &e->elem);
   if (found == NULL) {
     while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
@@ -161,6 +173,8 @@ find_entry (block_sector_t sector, struct entry **entry)
     struct entry *old_entry = entries[clock_hand];
     if (old_entry != NULL) {
       block_write (fs_device, old_entry->sector, index_to_block (old_entry->index));
+      nblock_write ++;
+
       hash_delete (&hashmap, &old_entry->elem);
       free (old_entry);
     }
@@ -172,6 +186,7 @@ find_entry (block_sector_t sector, struct entry **entry)
     clock_hand = (clock_hand + 1) % NUM_SECTORS;
   }
   else {
+    cache_hit ++;
     free (e);
     e = hash_entry (found, struct entry, elem);
   }
@@ -179,7 +194,7 @@ find_entry (block_sector_t sector, struct entry **entry)
   while (bitmap_test (usebits, e->index))
     cond_wait (&e->queue, &cache_lock);
   bitmap_mark (usebits, e->index);
-  
+
   *entry = e;
   return (found != NULL);
 }
