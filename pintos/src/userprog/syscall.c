@@ -155,13 +155,13 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     else if(args[0] == SYS_BUFFER_STAT){
       if (args[1] == 0)
-        f->eax = cache_total;
+        f->eax = cache_misses;
       else if (args[1] == 1)
-        f->eax = cache_hit;
+        f->eax = cache_hits;
       else if (args [1] == 2)
-        f->eax = nblock_read;
+        f->eax = disk_reads;
       else if (args [1] == 3)
-        f->eax = nblock_write;
+        f->eax = disk_writes;
     }
   }
 }
