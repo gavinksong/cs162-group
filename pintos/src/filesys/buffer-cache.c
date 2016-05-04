@@ -10,7 +10,7 @@
 #include "devices/timer.h"
 
 #define NUM_SECTORS 64
-#define WRITE_DELAY 10000
+#define WRITE_DELAY 30000
 
 static void *cache_base;                        /* Points to the base of the buffer cache. */
 static size_t clock_hand;                       /* Used for clock replacement. */

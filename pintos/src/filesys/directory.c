@@ -71,7 +71,7 @@ dir_reopen (struct dir *dir)
 void
 dir_close (struct dir *dir) 
 {
-  if (dir != NULL)
+  if (dir != NULL && dir->inode != NULL)
     {
       inode_close (dir->inode);
       free (dir);
@@ -190,6 +190,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
+  struct dir *parent;
   struct dir_entry e;
   struct inode *inode = NULL;
   bool success = false;
@@ -198,14 +199,19 @@ dir_remove (struct dir *dir, const char *name)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  /* Find directory entry. */
+  /* Find inode and offset of directory entry. */
   if (!dir_lookup (dir, name, &inode))
-    goto done;
-  
-  dir_close (dir);
-  dir_open (inode_open_parent (inode));
+    return false;
   ofs = inode_offset (inode);
-  inode_read_at (dir->inode, &e, sizeof e, ofs);
+
+  if (strcmp (name, ".") == 0) {
+    inode_close (dir->inode);
+    dir->inode = NULL;
+  }
+
+  /* Read directory entry. */
+  parent = dir_open (inode_open_parent (inode));
+  inode_read_at (parent->inode, &e, sizeof e, ofs);
 
   /* Should not remove open directories. */
   if (inode_isdir (inode) && get_open_cnt (inode) > 1)
@@ -215,15 +221,16 @@ dir_remove (struct dir *dir, const char *name)
     goto done;
   /* Erase directory entry. */
   e.in_use = false;
-  if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 
+  if (inode_write_at (parent->inode, &e, sizeof e, ofs) != sizeof e) 
     goto done;
 
   /* Remove inode. */
   inode_remove (inode);
-  inode_remove_file (dir->inode);
+  inode_remove_file (parent->inode);
   success = true;
 
  done:
+  dir_close (parent);
   inode_close (inode);
   return success;
 }

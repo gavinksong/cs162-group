@@ -101,7 +101,7 @@ inode_map_sectors (const struct inode_disk *inode,
   table_start = table_end;                                    \
   start += cnt;                                               \
 }
-  
+
   if (start < NUM_DIRECT) {
     sectors = (block_sector_t *) inode->direct;
     apply (NUM_DIRECT);

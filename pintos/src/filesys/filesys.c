@@ -91,7 +91,7 @@ filesys_open (const char *name)
    Fails if no file named NAME exists,
    or if an internal memory allocation fails. */
 bool
-filesys_remove (const char *name) 
+filesys_remove (const char *name)
 {
   struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
@@ -116,7 +116,7 @@ filesys_chdir (const char *path)
 
   if (inode != NULL) {
     inode_close (t->cwd);
-    inode_reopen (t->cwd = inode);
+    t->cwd = inode;
     return true;
   }
   return false;
@@ -170,6 +170,8 @@ follow_path (const char *path, struct dir **dir_,
   /* If NEXT is a directory, set FILENAME to "." */
   if (inode == next)
     strlcpy (filename, ".", 2);
+  else
+    inode_close (next);
 
   return (*dir_ = dir_open (inode)) != NULL;
 }

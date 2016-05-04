@@ -117,10 +117,10 @@ sema_up (struct semaphore *sema)
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
     {
-    struct list_elem *e = list_max (&sema->waiters, thread_compare_priority, NULL);
-    list_remove (e);
-    t = list_entry (e, struct thread, elem);
-    thread_unblock (t);
+      struct list_elem *e = list_max (&sema->waiters, thread_compare_priority, NULL);
+      list_remove (e);
+      t = list_entry (e, struct thread, elem);
+      thread_unblock (t);
     }
   sema->value++;
   intr_set_level (old_level);
@@ -212,25 +212,25 @@ lock_acquire (struct lock *lock)
   old_level = intr_disable ();
   if (!sema_try_down(&lock->semaphore))
     {
-    if (!thread_mlfqs) 
-      {
-      /* Recursive priority donations */
-      while (fix_compare (t->priority, w->priority) == 1)
-	{
-	w->priority = t->priority;
-	if (w->holder == NULL)
-	  break;
-	t = w->holder;
-	if (fix_compare (w->priority, t->priority) < 1)
-	  break;
-	t->priority = w->priority;
-	if (t->wait_lock == NULL)
-	  break;
-	w = t->wait_lock;
-	}
-      }
-    /* Start waiting */
-    sema_down (&lock->semaphore);
+      if (!thread_mlfqs) 
+        {
+        /* Recursive priority donations */
+        while (fix_compare (t->priority, w->priority) == 1)
+        	{
+          	w->priority = t->priority;
+          	if (w->holder == NULL)
+          	  break;
+          	t = w->holder;
+          	if (fix_compare (w->priority, t->priority) < 1)
+          	  break;
+          	t->priority = w->priority;
+          	if (t->wait_lock == NULL)
+          	  break;
+          	w = t->wait_lock;
+        	}
+        }
+      /* Start waiting */
+      sema_down (&lock->semaphore);
     }
   /* Acquire lock */
   t = thread_current ();
