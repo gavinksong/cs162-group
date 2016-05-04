@@ -464,10 +464,13 @@ inode_num_files (const struct inode *inode)
   return num_files;
 }
 
-void
+bool
 inode_add_file (const struct inode *parent, block_sector_t child_sector)
 {
   struct inode_disk *disk_inode;
+
+  if (!inode_isdir (parent))
+    return false;
 
   disk_inode = buffer_cache_get (child_sector);
   disk_inode->parent = parent->sector;
@@ -476,14 +479,20 @@ inode_add_file (const struct inode *parent, block_sector_t child_sector)
   disk_inode = buffer_cache_get(parent->sector);
   disk_inode->num_files += 1;
   buffer_cache_release (disk_inode, true);
+
+  return true;
 }
 
-void
+bool
 inode_remove_file (const struct inode *inode)
 {
+  if (!inode_isdir (inode))
+    return false;
+
   struct inode_disk *disk_inode = buffer_cache_get(inode->sector);
   disk_inode->num_files -= 1;
   buffer_cache_release (disk_inode, true);
+  return true;
 }
 
 int

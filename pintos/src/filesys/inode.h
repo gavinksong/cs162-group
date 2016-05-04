@@ -25,6 +25,6 @@ int get_open_cnt (const struct inode *);
 bool inode_isdir (const struct inode *);
 uint32_t inode_num_files (const struct inode *);
 bool inode_add_file (const struct inode *, block_sector_t);
-void inode_remove_file (const struct inode *);
+bool inode_remove_file (const struct inode *);
 
 #endif /* filesys/inode.h */

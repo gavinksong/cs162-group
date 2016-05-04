@@ -101,12 +101,11 @@ buffer_cache_flush (void)
 {
   size_t i = 0;
   lock_acquire (&cache_lock);
-  for (; i < NUM_SECTORS; i++) {
+  for (; i < NUM_SECTORS; i++)
     if (entries[i] != NULL && entries[i]->dirty && !bitmap_test (usebits, i)) {
       block_write (fs_device, entries[i]->sector, index_to_block (i));
       entries[i]->dirty = false;
     }
-  }
   lock_release (&cache_lock);
 }
 

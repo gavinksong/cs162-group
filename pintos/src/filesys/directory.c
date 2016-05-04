@@ -150,7 +150,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   struct dir_entry e;
   off_t ofs;
   struct inode *inode = NULL;
-  bool success = false;
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
@@ -180,10 +179,9 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
-  success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-  if (success)
-    inode_add_file (dir->inode, e.inode_sector);
-  return success;
+
+  return inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e
+         && inode_add_file (dir->inode, e.inode_sector);;
 }
 
 /* Removes any entry for NAME in DIR.
@@ -208,8 +206,8 @@ dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
-  /* Should not remove cwd. */
-  if (inode == thread_current ()->cwd)
+  /* Should not remove open directories. */
+  if (inode_isdir (inode) && get_open_cnt (inode) > 0)
     goto done;
   /* Shoud not remove a non-empty directory. */
   if (inode_num_files (inode) != 0)
