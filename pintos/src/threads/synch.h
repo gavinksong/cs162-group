@@ -41,7 +41,7 @@ bool lock_compare_priority (const struct list_elem *a,
 /* Condition variable. */
 struct condition
   {
-    struct semaphore sema;        /* List of waiting threads. */
+    struct list waiters;        /* List of waiting threads. */
   };
 
 void cond_init (struct condition *);

@@ -47,7 +47,7 @@ bytes_to_sectors (off_t size)
 }
 
 /* In-memory inode. */
-struct inode 
+struct inode
   {
     struct list_elem elem;              /* Element in inode list. */
     block_sector_t sector;              /* Sector number of disk location. */
@@ -121,7 +121,7 @@ inode_map_sectors (const struct inode_disk *inode,
   size_t i = (start - NUM_DIRECT) / NUM_INDIRECT - 1;
   table_start = NUM_DIRECT + (i + 1) * NUM_INDIRECT;
   indirects = buffer_cache_get (inode->doubly_indirect);
-  while (end <= start) {
+  while (end >= start) {
     sectors = buffer_cache_get (indirects[i++]);
     apply (NUM_INDIRECT);
     buffer_cache_release (sectors, true);
@@ -145,7 +145,7 @@ shorten_inode_length (struct inode_disk *inode, off_t length)
   size_t border = NUM_DIRECT;
 
   inode_map_sectors (inode, deallocate_sectors, start, end, NULL);
-  
+
   if (start <= border && border < end)
     free_map_release (inode->indirect, 1);
 
@@ -184,22 +184,22 @@ extend_inode_length (struct inode_disk *inode, off_t length)
     lock_release (&free_map_lock);
     return false;
   }
-  
+
   if (start <= border && border < end)
     free_map_allocate (1, &inode->indirect);
-  
+
   border += NUM_INDIRECT;
-  
+
   if (start <= border && border < end)
     free_map_allocate (1, &inode->doubly_indirect);
-  
+
   if (border < end) {
     size_t i = (start > border) ? (start - border) / NUM_INDIRECT : 0;
     size_t cnt = (end - border) / NUM_INDIRECT - i;
     block_sector_t *indirects = buffer_cache_get (inode->doubly_indirect);
     free_map_allocate_nc (cnt, &indirects[i]);
   }
-  
+
   inode_map_sectors (inode, allocate_sectors, start, end, NULL);
   lock_release (&free_map_lock);
   inode->length = length;
@@ -212,7 +212,7 @@ static struct list open_inodes;
 
 /* Initializes the inode module. */
 void
-inode_init (void) 
+inode_init (void)
 {
   list_init (&open_inodes);
   thread_current()->cwd = inode_open(ROOT_DIR_SECTOR);
@@ -257,13 +257,13 @@ inode_open (block_sector_t sector)
 
   /* Check whether this inode is already open. */
   for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
-       e = list_next (e)) 
+       e = list_next (e))
     {
       inode = list_entry (e, struct inode, elem);
-      if (inode->sector == sector) 
+      if (inode->sector == sector)
         {
           inode_reopen (inode);
-          return inode; 
+          return inode;
         }
     }
 
@@ -301,7 +301,7 @@ inode_get_inumber (const struct inode *inode)
    If this was the last reference to INODE, frees its memory.
    If INODE was also a removed inode, frees its blocks. */
 void
-inode_close (struct inode *inode) 
+inode_close (struct inode *inode)
 {
   /* Ignore null pointer. */
   if (inode == NULL)
@@ -312,9 +312,9 @@ inode_close (struct inode *inode)
     {
       /* Remove from inode list and release lock. */
       list_remove (&inode->elem);
- 
+
       /* Deallocate blocks if removed. */
-      if (inode->removed) 
+      if (inode->removed)
         {
           struct inode_disk *data = buffer_cache_get (inode->sector);
           shorten_inode_length (data, 0);
@@ -322,14 +322,14 @@ inode_close (struct inode *inode)
           free_map_release (inode->sector, 1);
         }
 
-      free (inode); 
+      free (inode);
     }
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
    has it open. */
 void
-inode_remove (struct inode *inode) 
+inode_remove (struct inode *inode)
 {
   ASSERT (inode != NULL);
   inode->removed = true;
@@ -347,7 +347,7 @@ struct buffer_aux {
    Returns the number of bytes actually read, which may be less
    than SIZE if an end of file is reached. */
 off_t
-inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
+inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
 {
   struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
   if (disk_inode->length < offset)
@@ -375,7 +375,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
    less than SIZE if an error occurs. */
 off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
-                off_t offset) 
+                off_t offset)
 {
   if (inode->deny_write_cnt)
     return 0;
@@ -405,7 +405,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 /* Disables writes to INODE.
    May be called at most once per inode opener. */
 void
-inode_deny_write (struct inode *inode) 
+inode_deny_write (struct inode *inode)
 {
   inode->deny_write_cnt++;
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
@@ -415,7 +415,7 @@ inode_deny_write (struct inode *inode)
    Must be called once by each inode opener who has called
    inode_deny_write() on the inode, before closing the inode. */
 void
-inode_allow_write (struct inode *inode) 
+inode_allow_write (struct inode *inode)
 {
   ASSERT (inode->deny_write_cnt > 0);
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
@@ -433,7 +433,7 @@ inode_length (const struct inode *inode)
 }
 
 /* Returns true if INODE is a directory, false otherwise. */
-bool 
+bool
 inode_isdir (const struct inode *inode)
 {
   struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
@@ -486,7 +486,7 @@ inode_add_file (const struct inode *parent, block_sector_t child_sector, off_t o
   disk_inode->parent = parent->sector;
   disk_inode->ofs = ofs;
   buffer_cache_release (disk_inode, true);
-  
+
   disk_inode = buffer_cache_get(parent->sector);
   disk_inode->num_files += 1;
   buffer_cache_release (disk_inode, true);

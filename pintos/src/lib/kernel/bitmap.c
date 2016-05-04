@@ -33,7 +33,7 @@ struct bitmap
 /* Returns the index of the element that contains the bit
    numbered BIT_IDX. */
 static inline size_t
-elem_idx (size_t bit_idx) 
+elem_idx (size_t bit_idx)
 {
   return bit_idx / ELEM_BITS;
 }
@@ -41,7 +41,7 @@ elem_idx (size_t bit_idx)
 /* Returns an elem_type where only the bit corresponding to
    BIT_IDX is turned on. */
 static inline elem_type
-bit_mask (size_t bit_idx) 
+bit_mask (size_t bit_idx)
 {
   return (elem_type) 1 << (bit_idx % ELEM_BITS);
 }
@@ -63,7 +63,7 @@ byte_cnt (size_t bit_cnt)
 /* Returns a bit mask in which the bits actually used in the last
    element of B's bits are set to 1 and the rest are set to 0. */
 static inline elem_type
-last_mask (const struct bitmap *b) 
+last_mask (const struct bitmap *b)
 {
   int last_bits = b->bit_cnt % ELEM_BITS;
   return last_bits ? ((elem_type) 1 << last_bits) - 1 : (elem_type) -1;
@@ -76,7 +76,7 @@ last_mask (const struct bitmap *b)
    The caller is responsible for freeing the bitmap, with bitmap_destroy(),
    when it is no longer needed. */
 struct bitmap *
-bitmap_create (size_t bit_cnt) 
+bitmap_create (size_t bit_cnt)
 {
   struct bitmap *b = malloc (sizeof *b);
   if (b != NULL)
@@ -100,7 +100,7 @@ struct bitmap *
 bitmap_create_in_buf (size_t bit_cnt, void *block, size_t block_size UNUSED)
 {
   struct bitmap *b = block;
-  
+
   ASSERT (block_size >= bitmap_buf_size (bit_cnt));
 
   b->bit_cnt = bit_cnt;
@@ -112,7 +112,7 @@ bitmap_create_in_buf (size_t bit_cnt, void *block, size_t block_size UNUSED)
 /* Returns the number of bytes required to accomodate a bitmap
    with BIT_CNT bits (for use with bitmap_create_in_buf()). */
 size_t
-bitmap_buf_size (size_t bit_cnt) 
+bitmap_buf_size (size_t bit_cnt)
 {
   return sizeof (struct bitmap) + byte_cnt (bit_cnt);
 }
@@ -120,9 +120,9 @@ bitmap_buf_size (size_t bit_cnt)
 /* Destroys bitmap B, freeing its storage.
    Not for use on bitmaps created by bitmap_create_in_buf(). */
 void
-bitmap_destroy (struct bitmap *b) 
+bitmap_destroy (struct bitmap *b)
 {
-  if (b != NULL) 
+  if (b != NULL)
     {
       free (b->bits);
       free (b);
@@ -142,7 +142,7 @@ bitmap_size (const struct bitmap *b)
 
 /* Atomically sets the bit numbered IDX in B to VALUE. */
 void
-bitmap_set (struct bitmap *b, size_t idx, bool value) 
+bitmap_set (struct bitmap *b, size_t idx, bool value)
 {
   ASSERT (b != NULL);
   ASSERT (idx < b->bit_cnt);
@@ -154,7 +154,7 @@ bitmap_set (struct bitmap *b, size_t idx, bool value)
 
 /* Atomically sets the bit numbered BIT_IDX in B to true. */
 void
-bitmap_mark (struct bitmap *b, size_t bit_idx) 
+bitmap_mark (struct bitmap *b, size_t bit_idx)
 {
   size_t idx = elem_idx (bit_idx);
   elem_type mask = bit_mask (bit_idx);
@@ -167,7 +167,7 @@ bitmap_mark (struct bitmap *b, size_t bit_idx)
 
 /* Atomically sets the bit numbered BIT_IDX in B to false. */
 void
-bitmap_reset (struct bitmap *b, size_t bit_idx) 
+bitmap_reset (struct bitmap *b, size_t bit_idx)
 {
   size_t idx = elem_idx (bit_idx);
   elem_type mask = bit_mask (bit_idx);
@@ -182,7 +182,7 @@ bitmap_reset (struct bitmap *b, size_t bit_idx)
    that is, if it is true, makes it false,
    and if it is false, makes it true. */
 void
-bitmap_flip (struct bitmap *b, size_t bit_idx) 
+bitmap_flip (struct bitmap *b, size_t bit_idx)
 {
   size_t idx = elem_idx (bit_idx);
   elem_type mask = bit_mask (bit_idx);
@@ -195,7 +195,7 @@ bitmap_flip (struct bitmap *b, size_t bit_idx)
 
 /* Returns the value of the bit numbered IDX in B. */
 bool
-bitmap_test (const struct bitmap *b, size_t idx) 
+bitmap_test (const struct bitmap *b, size_t idx)
 {
   ASSERT (b != NULL);
   ASSERT (idx < b->bit_cnt);
@@ -206,7 +206,7 @@ bitmap_test (const struct bitmap *b, size_t idx)
 
 /* Sets all bits in B to VALUE. */
 void
-bitmap_set_all (struct bitmap *b, bool value) 
+bitmap_set_all (struct bitmap *b, bool value)
 {
   ASSERT (b != NULL);
 
@@ -215,10 +215,10 @@ bitmap_set_all (struct bitmap *b, bool value)
 
 /* Sets the CNT bits starting at START in B to VALUE. */
 void
-bitmap_set_multiple (struct bitmap *b, size_t start, size_t cnt, bool value) 
+bitmap_set_multiple (struct bitmap *b, size_t start, size_t cnt, bool value)
 {
   size_t i;
-  
+
   ASSERT (b != NULL);
   ASSERT (start <= b->bit_cnt);
   ASSERT (start + cnt <= b->bit_cnt);
@@ -230,7 +230,7 @@ bitmap_set_multiple (struct bitmap *b, size_t start, size_t cnt, bool value)
 /* Returns the number of bits in B between START and START + CNT,
    exclusive, that are set to VALUE. */
 size_t
-bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value) 
+bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value)
 {
   size_t i, value_cnt;
 
@@ -248,10 +248,10 @@ bitmap_count (const struct bitmap *b, size_t start, size_t cnt, bool value)
 /* Returns true if any bits in B between START and START + CNT,
    exclusive, are set to VALUE, and false otherwise. */
 bool
-bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value) 
+bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value)
 {
   size_t i;
-  
+
   ASSERT (b != NULL);
   ASSERT (start <= b->bit_cnt);
   ASSERT (start + cnt <= b->bit_cnt);
@@ -262,10 +262,24 @@ bitmap_contains (const struct bitmap *b, size_t start, size_t cnt, bool value)
   return false;
 }
 
+size_t
+bitmap_ncontains (const struct bitmap *b, size_t start, size_t cnt, bool value)
+{
+  size_t i;
+
+  ASSERT (b != NULL);
+  ASSERT (start <= b->bit_cnt);
+  ASSERT (start + cnt <= b->bit_cnt);
+
+  for (i = 0; i < cnt; i++)
+    if (bitmap_test (b, start + i) == value)
+      return start+i+1;
+  return 0;
+}
 /* Returns true if any bits in B between START and START + CNT,
    exclusive, are set to true, and false otherwise.*/
 bool
-bitmap_any (const struct bitmap *b, size_t start, size_t cnt) 
+bitmap_any (const struct bitmap *b, size_t start, size_t cnt)
 {
   return bitmap_contains (b, start, cnt, true);
 }
@@ -273,7 +287,7 @@ bitmap_any (const struct bitmap *b, size_t start, size_t cnt)
 /* Returns true if no bits in B between START and START + CNT,
    exclusive, are set to true, and false otherwise.*/
 bool
-bitmap_none (const struct bitmap *b, size_t start, size_t cnt) 
+bitmap_none (const struct bitmap *b, size_t start, size_t cnt)
 {
   return !bitmap_contains (b, start, cnt, true);
 }
@@ -281,7 +295,7 @@ bitmap_none (const struct bitmap *b, size_t start, size_t cnt)
 /* Returns true if every bit in B between START and START + CNT,
    exclusive, is set to true, and false otherwise. */
 bool
-bitmap_all (const struct bitmap *b, size_t start, size_t cnt) 
+bitmap_all (const struct bitmap *b, size_t start, size_t cnt)
 {
   return !bitmap_contains (b, start, cnt, false);
 }
@@ -293,18 +307,25 @@ bitmap_all (const struct bitmap *b, size_t start, size_t cnt)
    VALUE.
    If there is no such group, returns BITMAP_ERROR. */
 size_t
-bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value) 
+bitmap_scan (const struct bitmap *b, size_t start, size_t cnt, bool value)
 {
   ASSERT (b != NULL);
   ASSERT (start <= b->bit_cnt);
 
-  if (cnt <= b->bit_cnt) 
+  if (cnt <= b->bit_cnt)
     {
       size_t last = b->bit_cnt - cnt;
-      size_t i;
-      for (i = start; i <= last; i++)
-        if (!bitmap_contains (b, i, cnt, !value))
-          return i; 
+      size_t i = start;
+      size_t newi;
+      while (i <= last){
+        newi = bitmap_ncontains(b, i, cnt, !value);
+        if (newi == 0){
+          return i;
+        }
+        else{
+            i=newi;
+        }
+      }
     }
   return BITMAP_ERROR;
 }
@@ -320,7 +341,7 @@ size_t
 bitmap_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value)
 {
   size_t idx = bitmap_scan (b, start, cnt, value);
-  if (idx != BITMAP_ERROR) 
+  if (idx != BITMAP_ERROR)
     bitmap_set_multiple (b, idx, cnt, !value);
   return idx;
 }
@@ -330,7 +351,7 @@ bitmap_scan_and_flip (struct bitmap *b, size_t start, size_t cnt, bool value)
 #ifdef FILESYS
 /* Returns the number of bytes needed to store B in a file. */
 size_t
-bitmap_file_size (const struct bitmap *b) 
+bitmap_file_size (const struct bitmap *b)
 {
   return byte_cnt (b->bit_cnt);
 }
@@ -338,10 +359,10 @@ bitmap_file_size (const struct bitmap *b)
 /* Reads B from FILE.  Returns true if successful, false
    otherwise. */
 bool
-bitmap_read (struct bitmap *b, struct file *file) 
+bitmap_read (struct bitmap *b, struct file *file)
 {
   bool success = true;
-  if (b->bit_cnt > 0) 
+  if (b->bit_cnt > 0)
     {
       off_t size = byte_cnt (b->bit_cnt);
       success = file_read_at (file, b->bits, size, 0) == size;
@@ -364,7 +385,7 @@ bitmap_write (const struct bitmap *b, struct file *file)
 
 /* Dumps the contents of B to the console as hexadecimal. */
 void
-bitmap_dump (const struct bitmap *b) 
+bitmap_dump (const struct bitmap *b)
 {
   hex_dump (0, b->bits, byte_cnt (b->bit_cnt), false);
 }
