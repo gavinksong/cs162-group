@@ -119,7 +119,6 @@ filesys_chdir (const char *path)
     inode_reopen (t->cwd = inode);
     return true;
   }
-
   return false;
 }
 
@@ -136,7 +135,7 @@ do_format (void)
 }
 
 /* Stores the name of the file referenced by PATH in
-   FILENAME, and the parent directory in DIR.
+   FILENAME, and the directory in DIR.
    Returns false if the path is invalid or an error occurs,
    true otherwise. */
 static bool
@@ -146,6 +145,9 @@ follow_path (const char *path, struct dir **dir,
   struct inode *inode;
   struct inode *next;
 
+  if (path[0] == '\0')
+    return false;
+  
   if (path[0] == '/')
     inode = next = inode_open (ROOT_DIR_SECTOR);
   else
@@ -165,7 +167,7 @@ follow_path (const char *path, struct dir **dir,
   if (get_next_part (filename, &path) != 0)
     return false;
 
-  /* If INODE is a directory, set FILENAME to "." */
+  /* If NEXT is a directory, set FILENAME to "." */
   if (inode == next)
     strlcpy (filename, ".", 2);
 

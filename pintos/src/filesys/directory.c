@@ -149,6 +149,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
   struct dir_entry e;
   off_t ofs;
+  struct inode *inode = NULL;
   bool success = false;
 
   ASSERT (dir != NULL);
@@ -159,7 +160,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
     return false;
 
   /* Check that NAME is not in use. */
-  if (lookup (dir, name, NULL, NULL))
+  if (dir_lookup (dir, name, &inode))
     goto done;
 
   /* Set OFS to offset of free slot.
@@ -180,14 +181,15 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
   
-  if(success) {
-    struct inode *inode = inode_open (inode_sector);
+  if (success) {
+    inode = inode_open (inode_sector);
     inode_set_parent (inode, inode_get_inumber (dir->inode));
     inode_close (inode);
     increment_fn_cnt (dir->inode);
   }
 
  done:
+  inode_close (inode);
   return success;
 }
 
@@ -218,9 +220,6 @@ dir_remove (struct dir *dir, const char *name)
     goto done;
   /* Shoud not remove a non-empty directory. */
   if (inode_num_files (inode) != 0)
-    goto done;
-  /* Should not remove a opened directory. */
-  if (get_open_cnt (inode) != 0)
     goto done;
   /* Erase directory entry. */
   e.in_use = false;

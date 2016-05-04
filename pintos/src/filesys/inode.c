@@ -21,12 +21,17 @@
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
+    /* Data blocks. */
     block_sector_t direct[NUM_DIRECT];    /* Direct pointers. */
     block_sector_t indirect;              /* Indirect pointer. */
     block_sector_t doubly_indirect;       /* Doubly indirect pointer. */
+
+    /* Filesys metadata. */
     block_sector_t parent;                /* inode_disk sector of the parent directory. */
-    uint32_t num_files;                   /* The number of subdirectories or files. */
     bool isdir;                           /* True if this file is a directory. */
+    uint32_t num_files;                   /* The number of subdirectories or files. */
+
+    /* Misc. */
     off_t length;                         /* File size in bytes. */
     unsigned magic;                       /* Note: magic has a different offset now. */
     uint8_t unused[3];
