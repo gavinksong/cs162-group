@@ -13,7 +13,7 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define NUM_DIRECT 120
+#define NUM_DIRECT 119
 #define NUM_INDIRECT 128
 #define MAX_LENGTH 8388608
 
@@ -28,6 +28,7 @@ struct inode_disk
 
     /* Filesys metadata. */
     block_sector_t parent;                /* inode_disk sector of the parent directory. */
+    off_t ofs;                            /* Offset of entry in parent directory. */
     bool isdir;                           /* True if this file is a directory. */
     uint32_t num_files;                   /* The number of subdirectories or files. */
 
@@ -289,19 +290,6 @@ inode_reopen (struct inode *inode)
   return inode;
 }
 
-/* Opens INODE's parent directory inode. */
-struct inode *
-inode_open_parent (struct inode *inode)
-{
-  if (inode != NULL) {
-    struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-    block_sector_t parent = disk_inode->parent;
-    buffer_cache_release (disk_inode, false);
-    inode = inode_open (parent);
-  }
-  return inode;
-}
-
 /* Returns INODE's inode number. */
 block_sector_t
 inode_get_inumber (const struct inode *inode)
@@ -454,6 +442,28 @@ inode_isdir (const struct inode *inode)
   return isdir;
 }
 
+/* Opens INODE's parent directory inode. */
+struct inode *
+inode_open_parent (struct inode *inode)
+{
+  if (inode != NULL) {
+    struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+    block_sector_t parent = disk_inode->parent;
+    buffer_cache_release (disk_inode, false);
+    inode = inode_open (parent);
+  }
+  return inode;
+}
+
+/* Returns the offset of INODE's entry in INODE's parent directory. */
+off_t
+inode_offset (const struct inode *inode) {
+  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
+  off_t ofs = disk_inode->ofs;
+  buffer_cache_release (disk_inode, false);
+  return ofs;
+}
+
 /* Returns the number of subdirectories or files in INODE. */
 uint32_t
 inode_num_files (const struct inode *inode)
@@ -465,7 +475,7 @@ inode_num_files (const struct inode *inode)
 }
 
 bool
-inode_add_file (const struct inode *parent, block_sector_t child_sector)
+inode_add_file (const struct inode *parent, block_sector_t child_sector, off_t ofs)
 {
   struct inode_disk *disk_inode;
 
@@ -474,6 +484,7 @@ inode_add_file (const struct inode *parent, block_sector_t child_sector)
 
   disk_inode = buffer_cache_get (child_sector);
   disk_inode->parent = parent->sector;
+  disk_inode->ofs = ofs;
   buffer_cache_release (disk_inode, true);
   
   disk_inode = buffer_cache_get(parent->sector);

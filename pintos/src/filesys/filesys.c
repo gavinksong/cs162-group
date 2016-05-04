@@ -139,7 +139,7 @@ do_format (void)
    Returns false if the path is invalid or an error occurs,
    true otherwise. */
 static bool
-follow_path (const char *path, struct dir **dir,
+follow_path (const char *path, struct dir **dir_,
              char filename[NAME_MAX +1])
 {
   struct inode *inode;
@@ -154,9 +154,9 @@ follow_path (const char *path, struct dir **dir,
     inode = next = inode_reopen (thread_current ()->cwd);
 
   while (get_next_part (filename, &path) == 1) {
-    *dir = dir_open (inode_reopen (inode));
-    dir_lookup (*dir, filename, &next);
-    dir_close (*dir);
+    struct dir *dir = dir_open (inode_reopen (inode));
+    dir_lookup (dir, filename, &next);
+    dir_close (dir);
     if (next == NULL || !inode_isdir (next))
       break;
     inode_close (inode);
@@ -171,7 +171,7 @@ follow_path (const char *path, struct dir **dir,
   if (inode == next)
     strlcpy (filename, ".", 2);
 
-  return (*dir = dir_open (inode)) != NULL;
+  return (*dir_ = dir_open (inode)) != NULL;
 }
 
 static int

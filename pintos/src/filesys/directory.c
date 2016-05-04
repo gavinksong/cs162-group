@@ -181,7 +181,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   e.inode_sector = inode_sector;
 
   return inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e
-         && inode_add_file (dir->inode, e.inode_sector);;
+         && inode_add_file (dir->inode, e.inode_sector, ofs);
 }
 
 /* Removes any entry for NAME in DIR.
@@ -199,15 +199,16 @@ dir_remove (struct dir *dir, const char *name)
   ASSERT (name != NULL);
 
   /* Find directory entry. */
-  if (!lookup (dir, name, &e, &ofs))
+  if (!dir_lookup (dir, name, &inode))
     goto done;
+  
+  dir_close (dir);
+  dir_open (inode_open_parent (inode));
+  ofs = inode_offset (inode);
+  inode_read_at (dir->inode, &e, sizeof e, ofs);
 
-  /* Open inode. */
-  inode = inode_open (e.inode_sector);
-  if (inode == NULL)
-    goto done;
   /* Should not remove open directories. */
-  if (inode_isdir (inode) && get_open_cnt (inode) > 0)
+  if (inode_isdir (inode) && get_open_cnt (inode) > 1)
     goto done;
   /* Shoud not remove a non-empty directory. */
   if (inode_num_files (inode) != 0)
