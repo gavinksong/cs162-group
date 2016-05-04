@@ -20,10 +20,11 @@ off_t inode_write_at (struct inode *, const void *, off_t size, off_t offset);
 void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
+int get_open_cnt (const struct inode *);
+
 bool inode_isdir (const struct inode *);
 uint32_t inode_num_files (const struct inode *);
-void inode_set_parent (const struct inode *, block_sector_t);
-void increment_fn_cnt (const struct inode *);
-void decrement_fn_cnt (const struct inode *);
-int get_open_cnt (const struct inode *);
+bool inode_add_file (const struct inode *, block_sector_t);
+void inode_remove_file (const struct inode *);
+
 #endif /* filesys/inode.h */

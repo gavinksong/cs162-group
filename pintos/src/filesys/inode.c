@@ -465,29 +465,25 @@ inode_num_files (const struct inode *inode)
 }
 
 void
-inode_set_parent (const struct inode *inode, block_sector_t parent)
+inode_add_file (const struct inode *parent, block_sector_t child_sector)
 {
-  struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-  disk_inode->parent = parent;
+  struct inode_disk *disk_inode;
+
+  disk_inode = buffer_cache_get (child_sector);
+  disk_inode->parent = parent->sector;
+  buffer_cache_release (disk_inode, true);
+  
+  disk_inode = buffer_cache_get(parent->sector);
+  disk_inode->num_files += 1;
   buffer_cache_release (disk_inode, true);
 }
 
 void
-increment_fn_cnt(const struct inode *inode)
+inode_remove_file (const struct inode *inode)
 {
-  struct inode *parent_inode = inode_open_parent(inode);
-  struct inode_disk *parent_disk = buffer_cache_get(parent_inode->sector);
-  parent_disk->num_files += 1;
-  buffer_cache_release (parent_disk, false);
-}
-
-void
-decrement_fn_cnt(const struct inode *inode)
-{
-  struct inode *parent_inode = inode_open_parent(inode);
-  struct inode_disk *parent_disk = buffer_cache_get(parent_inode->sector);
-  parent_disk->num_files -= 1;
-  buffer_cache_release (parent_disk, false);
+  struct inode_disk *disk_inode = buffer_cache_get(inode->sector);
+  disk_inode->num_files -= 1;
+  buffer_cache_release (disk_inode, true);
 }
 
 int

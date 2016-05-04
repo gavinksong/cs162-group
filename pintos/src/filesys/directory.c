@@ -161,7 +161,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Check that NAME is not in use. */
   if (dir_lookup (dir, name, &inode))
-    goto done;
+    return false;
+  inode_close (inode);
 
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
@@ -180,16 +181,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-  
-  if (success) {
-    inode = inode_open (inode_sector);
-    inode_set_parent (inode, inode_get_inumber (dir->inode));
-    inode_close (inode);
-    increment_fn_cnt (dir->inode);
-  }
-
- done:
-  inode_close (inode);
+  if (success)
+    inode_add_file (dir->inode, e.inode_sector);
   return success;
 }
 
@@ -228,8 +221,8 @@ dir_remove (struct dir *dir, const char *name)
 
   /* Remove inode. */
   inode_remove (inode);
+  inode_remove_file (dir->inode);
   success = true;
-  decrement_fn_cnt (dir->inode);
 
  done:
   inode_close (inode);
