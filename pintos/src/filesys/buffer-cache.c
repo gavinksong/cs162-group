@@ -62,13 +62,13 @@ void *
 buffer_cache_get (block_sector_t sector)
 {
   struct entry *e;
-  bool cache_miss;
+  bool cache_hit;
 
   lock_acquire (&cache_lock);
-  cache_miss = find_entry (sector, &e);
+  cache_hit = find_entry (sector, &e);
   lock_release (&cache_lock);
 
-  if (!cache_miss)
+  if (!cache_hit)
     block_read (fs_device, sector, index_to_block (e->index));
 
   return index_to_block (e->index);
