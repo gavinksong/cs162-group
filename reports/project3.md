@@ -1,12 +1,18 @@
 Final Report for Project 3: File System
 =======================================
 
+Student Testing Report
+=========================================
+
 ### my-test-1
 Test your buffer cache’s effectiveness by measuring its cache hit rate. First, reset the buffer cache.
 Open a file and read it sequentially, to determine the cache hit rate for a cold cache. Then, close
 it, re-open it, and read it sequentially again, to make sure that the cache hit rate improves.
 
 We added `buffer_reset()` and `buffer_stat(int)` syscalls to reset the buffer_cache before any readings and get the number of cache hits/misses to calculate the hit rate. 
+
+- If the kernel did not have buffer cache implemented, the writing procedure would be very long and the hit rate would not     improve at all
+- If the kernel did not have the resetting buffer cache feature implement, the cache might not be cold in the first place and   the hit rate might not be accurate.
 
 **Note**: line 7 in `tests/filesys/extended/Make.tests` was modified to run my-test-1
 
@@ -21,8 +27,54 @@ number of block_read. After writing 200 blocks to the file, the number of `block
 because there is a read of inode metadata.
 
 ###### my-test-2.output
+```
+Copying tests/filesys/extended/my-test-2 to scratch partition...
+Copying tests/filesys/extended/tar to scratch partition...
+qemu -hda /tmp/Wuf1CGLTBJ.dsk -hdb tmp.dsk -m 4 -net none -nographic -monitor null
+PiLo hda1
+Loading...........
+Kernel command line: -q -f extract run my-test-2
+Pintos booting with 4,088 kB RAM...
+382 pages available in kernel pool.
+382 pages available in user pool.
+Calibrating timer...  124,313,600 loops/s.
+hda: 1,008 sectors (504 kB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 186 sectors (93 kB), Pintos OS kernel (20)
+hda2: 236 sectors (118 kB), Pintos scratch (22)
+hdb: 5,040 sectors (2 MB), model "QM00002", serial "QEMU HARDDISK"
+hdb1: 4,096 sectors (2 MB), Pintos file system (21)
+filesys: using hdb1
+scratch: using hda2
+Formatting file system...done.
+Boot complete.
+Extracting ustar archive from scratch device into file system...
+Putting 'my-test-2' into the file system...
+Putting 'tar' into the file system...
+Erasing ustar archive...
+Executing 'my-test-2':
+(my-test-2) begin
+(my-test-2) create "a"
+(my-test-2) open "a"
+(my-test-2) write 100 kB to "a"
+(my-test-2) called block_read 1 times in 200 writes
+(my-test-2) close "a"
+(my-test-2) end
+my-test-2: exit(0)
+Execution of 'my-test-2' complete.
+Timer: 120 ticks
+Thread: 32 idle ticks, 45 kernel ticks, 43 user ticks
+hdb1 (filesys): 279 reads, 713 writes
+hda2 (scratch): 235 reads, 2 writes
+Console: 1147 characters output
+Keyboard: 0 keys pressed
+Exception: 0 page faults
+Powering off...
+```
 
 ###### my-test-2.result
+```
+PASS
+```
 
 ### Our Experiences
 Dispict the simplicity of the first test, we were confused about the meaning of the "sequential read" stated in the spec. 
