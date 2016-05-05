@@ -18,7 +18,6 @@ test_main (void)
   size_t ret_val;
   random_init (0);
   random_bytes (buf_a, sizeof buf_a);
-
   CHECK (create ("a", 0), "create \"a\"");
   CHECK ((fd = open ("a")) > 1, "open \"a\"");
 

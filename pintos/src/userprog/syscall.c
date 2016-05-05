@@ -160,9 +160,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       else if (args[1] == 1)
         f->eax = cache_hits;
       else if (args [1] == 2)
-        f->eax = disk_reads;
+        f->eax = (int)block_nreads(fs_device);
       else if (args [1] == 3)
-        f->eax = disk_writes;
+        f->eax = (int)block_nwrites(fs_device);
     }
     else if(args[0] == SYS_BUFFER_RESET){
       buffer_cache_reset();
