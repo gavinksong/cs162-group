@@ -22,7 +22,7 @@ We remove the file created right before the test ends.
 ```
 Copying tests/filesys/extended/my-test-1 to scratch partition...
 Copying tests/filesys/extended/tar to scratch partition...
-qemu -hda /tmp/OkQKh09bF1.dsk -hdb tmp.dsk -m 4 -net none -nographic -monitor null
+qemu -hda /tmp/fdLMMRCEV1.dsk -hdb tmp.dsk -m 4 -net none -nographic -monitor null
 PiLo hda1
 Loading...........
 Kernel command line: -q -f extract run my-test-1
@@ -45,28 +45,26 @@ Putting 'tar' into the file system...
 Erasing ustar archive...
 Executing 'my-test-1':
 (my-test-1) begin
-(my-test-1) create "tmp"
-(my-test-1) open "tmp"
-(my-test-1) creating tmp file
+(my-test-1) create "a"
+(my-test-1) open "a"
+(my-test-1) creating a
 (my-test-1) close "tmp"
 (my-test-1) resetting buffer
-(my-test-1) open "tmp"
+(my-test-1) open "a"
 (my-test-1) read tmp
-(my-test-1) close tmp
-(my-test-1) Hit rate of the first reading: 67%
-(my-test-1) open "tmp"
-(my-test-1) read tmp
-(my-test-1) close tmp
-(my-test-1) new_total 110 163 273 326
-(my-test-1) Hit rate of the second reading: 100%
+(my-test-1) close "a"
+(my-test-1) open "a"
+(my-test-1) read "a"
+(my-test-1) close "a"
+(my-test-1) Hit rate of the second reading is greater than hit rate of the first reading
 (my-test-1) end
 my-test-1: exit(0)
 Execution of 'my-test-1' complete.
-Timer: 100 ticks
-Thread: 30 idle ticks, 53 kernel ticks, 18 user ticks
-hdb1 (filesys): 335 reads, 558 writes
+Timer: 98 ticks
+Thread: 30 idle ticks, 50 kernel ticks, 19 user ticks
+hdb1 (filesys): 337 reads, 563 writes
 hda2 (scratch): 238 reads, 2 writes
-Console: 1394 characters output
+Console: 1333 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...
@@ -81,7 +79,7 @@ PASS
 This test is to check the buffer cache’s ability to write full blocks to disk without reading them first. 
 200 blocks of contents are written into a file first and then use the syscall `buffer_stat(int)` to get the 
 number of block_read. After writing 200 blocks to the file, the number of `block_read` is printed out, which is 1 
-because there is a read of inode metadata.
+because there is a read and write of inode metadata.
 
 We remove the file created right before the test ends.
 
@@ -116,6 +114,7 @@ Executing 'my-test-2':
 (my-test-2) open "a"
 (my-test-2) write 100 kB to "a"
 (my-test-2) called block_read 1 times in 200 writes
+(my-test-2) called block_write 201 times in 200 writes
 (my-test-2) close "a"
 (my-test-2) end
 my-test-2: exit(0)
