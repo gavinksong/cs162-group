@@ -16,16 +16,16 @@ test_main (void)
   size_t ret_val;
   random_init (0);
   random_bytes (buf_a, sizeof buf_a);
-  CHECK (create ("a", 0), "create \"tmp\"");
-  CHECK ((fd = open ("a")) > 1, "open \"tmp\"");
+  CHECK (create ("a", 0), "create \"a\"");
+  CHECK ((fd = open ("a")) > 1, "open \"a\"");
 
-  msg("creating tmp file");
+  msg("creating a");
   int i = 0;
   for(; i < NUM_BLOCKS; i++)
   {
     ret_val = write (fd, buf_a, BLOCK_SIZE);
     if (ret_val != BLOCK_SIZE)
-      fail ("write %zu bytes in \"tmp\" returned %zu",
+      fail ("write %zu bytes in \"a\" returned %zu",
             BLOCK_SIZE, ret_val);
   }
   msg ("close \"tmp\"");
@@ -34,36 +34,42 @@ test_main (void)
   msg("resetting buffer");
   buffer_reset ();
 
-  CHECK ((fd = open ("a")) > 1, "open \"tmp\"");
+  CHECK ((fd = open ("a")) > 1, "open \"a\"");
   msg ("read tmp");
   for (i = 0; i < NUM_BLOCKS; i++)
   {
     ret_val = read (fd, buf_a, BLOCK_SIZE);
     if (ret_val != BLOCK_SIZE)
-        fail ("read %zu bytes in \"tmp\" returned %zu",
+        fail ("read %zu bytes in \"a\" returned %zu",
               BLOCK_SIZE, ret_val);
   }
   close (fd);
-  msg("close tmp");
+  msg("close \"a\"");
 
   int old_hit = buffer_stat (1);
   int old_total = buffer_stat (0) + old_hit;
-  msg ("Hit rate of the first reading: %d%%", (100 * old_hit) / old_total);
+  int old_hit_rate = (100 * old_hit) / old_total;
 
-  CHECK ((fd = open ("a")) > 1, "open \"tmp\"");
-  msg ("read tmp");
+  CHECK ((fd = open ("a")) > 1, "open \"a\"");
+  msg ("read \"a\"");
   for (i = 0; i < NUM_BLOCKS; i ++)
   {
     ret_val = read (fd, buf_a, BLOCK_SIZE);
     if (ret_val != BLOCK_SIZE)
-        fail ("read %zu bytes in \"tmp\" returned %zu",
+        fail ("read %zu bytes in \"a\" returned %zu",
               BLOCK_SIZE, ret_val);
   }
   close (fd);
-  msg("close tmp");
+  msg("close \"a\"");
+
+  remove ("a");
+
 
   int new_hit = buffer_stat (1) ;
   int new_total = buffer_stat (0) + new_hit;
-  msg("new_total %d %d %d %d", old_hit, old_total, new_hit, new_total);
-  msg ("Hit rate of the second reading: %d%%", (100 * (new_hit - old_hit)) / (new_total - old_total));
+  int new_hit_rate = 100 * (new_hit - old_hit) / (new_total - old_total);
+
+  if (new_hit_rate>old_hit_rate){
+    msg("Hit rate of the second reading is greater than hit rate of the first reading");
+  }
 }

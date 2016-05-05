@@ -35,4 +35,5 @@ test_main (void)
   msg("called block_read %d times in 200 writes", n_read2-n_read1);
   msg ("close \"a\"");
   close (fd);
+  remove("a");
 }
