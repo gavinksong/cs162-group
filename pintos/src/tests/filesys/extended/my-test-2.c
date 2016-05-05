@@ -20,7 +20,6 @@ test_main (void)
   random_bytes (buf_a, sizeof buf_a);
   CHECK (create ("a", 0), "create \"a\"");
   CHECK ((fd = open ("a")) > 1, "open \"a\"");
-
   n_read1 = buffer_stat (2);
 
   msg ("write 100 kB to \"a\"");
