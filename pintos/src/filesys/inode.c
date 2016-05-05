@@ -92,6 +92,8 @@ inode_map_sectors (const struct inode_disk *inode,
   block_sector_t *sectors;
   block_sector_t *indirects;
 
+/* Applies MAP_FUNC to the portion of SECTORS between the START and
+   END indices, and advances START by the number of sectors mapped. */
 #define apply(num_pointers) {                                 \
   size_t table_end = num_pointers + table_start;              \
   size_t cnt = (end < table_end ? end : table_end) - start;   \
@@ -102,6 +104,7 @@ inode_map_sectors (const struct inode_disk *inode,
   start += cnt;                                               \
 }
 
+  /* Apply to direct blocks. */
   if (start < NUM_DIRECT) {
     sectors = (block_sector_t *) inode->direct;
     apply (NUM_DIRECT);
@@ -109,6 +112,7 @@ inode_map_sectors (const struct inode_disk *inode,
   if (end <= start)
     return true;
 
+  /* Apply to indirect blocks. */
   table_start = NUM_DIRECT;
   if (start < NUM_DIRECT + NUM_INDIRECT) {
     sectors = buffer_cache_get (inode->indirect);
@@ -118,6 +122,7 @@ inode_map_sectors (const struct inode_disk *inode,
   if (end <= start)
     return true;
 
+  /* Apply to doubly indirect blocks. */
   size_t i = (start - NUM_DIRECT) / NUM_INDIRECT - 1;
   table_start = NUM_DIRECT + (i + 1) * NUM_INDIRECT;
   indirects = buffer_cache_get (inode->doubly_indirect);
@@ -144,13 +149,16 @@ shorten_inode_length (struct inode_disk *inode, off_t length)
   size_t end = bytes_to_sectors (inode->length);
   size_t border = NUM_DIRECT;
 
+  /* Free leaf nodes. */
   inode_map_sectors (inode, deallocate_sectors, start, end, NULL);
 
+  /* Free INDIRECT. */
   if (start <= border && border < end)
     free_map_release (inode->indirect, 1);
 
   border += NUM_INDIRECT;
 
+  /* Release all pointers in DOUBLY_INDIRECT sector. */
   if (border < end) {
     size_t i = (start > border) ? DIV_ROUND_UP (start - border, NUM_INDIRECT) : 0;
     size_t cnt = DIV_ROUND_UP (end - border,  NUM_INDIRECT) - i;
@@ -159,6 +167,7 @@ shorten_inode_length (struct inode_disk *inode, off_t length)
     buffer_cache_release (indirects, true);
   }
 
+  /* Free DOUBLY_INDIRECT. */
   if (start <= border && border < end)
     free_map_release (inode->doubly_indirect, 1);
 
@@ -178,6 +187,7 @@ extend_inode_length (struct inode_disk *inode, off_t length)
   size_t end = bytes_to_sectors (length);
   size_t border = NUM_DIRECT;
 
+  /* Acquire free map lock and check available space. */
   lock_acquire (&free_map_lock);
   if (free_map_available_space () < end - start
                                     + (end / NUM_DIRECT)
@@ -186,14 +196,17 @@ extend_inode_length (struct inode_disk *inode, off_t length)
     return false;
   }
 
+  /* Allocate INDIRECT. */
   if (start <= border && border < end)
     free_map_allocate (1, &inode->indirect);
 
   border += NUM_INDIRECT;
 
+  /* Allocate DOUBLY_INDIRECT. */
   if (start <= border && border < end)
     free_map_allocate (1, &inode->doubly_indirect);
 
+  /* Set all pointers in DOUBLY_INDIRECT. */
   if (border < end) {
     size_t i = (start > border) ? DIV_ROUND_UP (start - border , NUM_INDIRECT) : 0;
     size_t cnt = DIV_ROUND_UP (end - border, NUM_INDIRECT) - i;
@@ -202,6 +215,7 @@ extend_inode_length (struct inode_disk *inode, off_t length)
     buffer_cache_release (indirects, true);
   }
 
+  /* Allocate all leaf nodes and set INODE's LENGTH. */
   inode_map_sectors (inode, allocate_sectors, start, end, NULL);
   lock_release (&free_map_lock);
   inode->length = length;
@@ -354,13 +368,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
   if (disk_inode->length < offset)
     return 0;
+  /* Read up until the end-of-file. */
   if (disk_inode->length < offset + size)
     size = disk_inode->length - offset;
 
   size_t start = offset / BLOCK_SECTOR_SIZE;
   size_t end = DIV_ROUND_UP (offset + size, BLOCK_SECTOR_SIZE);
   struct buffer_aux *aux = malloc (sizeof (struct buffer_aux));
-  aux->buffer = buffer_;
+  aux->buffer = (void *) buffer_;
   aux->size = size;
   aux->offset = offset;
   aux->pos = 0;
@@ -383,16 +398,15 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     return 0;
 
   struct inode_disk *disk_inode = buffer_cache_get (inode->sector);
-  if (disk_inode->length < offset + size) {
-    // FIXME: hit or miss
+  if (disk_inode->length < offset + size)
+    /* Quit if there isn't enough space on disk. */
     if (!extend_inode_length (disk_inode, offset + size))
       return 0;
-  }
 
   size_t start = offset / BLOCK_SECTOR_SIZE;
   size_t end = DIV_ROUND_UP (offset + size, BLOCK_SECTOR_SIZE);
   struct buffer_aux *aux = malloc (sizeof (struct buffer_aux));
-  aux->buffer = buffer_;
+  aux->buffer = (void *) buffer_;
   aux->size = size;
   aux->offset = offset;
   aux->pos = 0;
@@ -476,6 +490,9 @@ inode_num_files (const struct inode *inode)
   return num_files;
 }
 
+/* If PARENT is a directory, sets the parent and ofs
+   members of the inode in CHILD SECTOR to PARENT and
+   OFS. Increments the num_files of PARENT by one. */
 bool
 inode_add_file (const struct inode *parent, block_sector_t child_sector, off_t ofs)
 {
@@ -496,6 +513,7 @@ inode_add_file (const struct inode *parent, block_sector_t child_sector, off_t o
   return true;
 }
 
+/* Decrement num_files of INODE. */
 bool
 inode_remove_file (const struct inode *inode)
 {
@@ -513,6 +531,8 @@ get_open_cnt (const struct inode *inode) {
   return inode->open_cnt;
 }
 
+/* Allocates and zeros-out CNT new sectors.
+   Stores the sector numbers in SECTORS. */
 static bool
 allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                   size_t cnt, void *aux UNUSED)
@@ -528,6 +548,7 @@ allocate_sectors (size_t start UNUSED, block_sector_t *sectors,
   return success;
 }
 
+/* Frees up the first CNT sectors in SECTORS. */
 static bool
 deallocate_sectors (size_t start UNUSED, block_sector_t *sectors,
                     size_t cnt, void *aux UNUSED)
@@ -535,6 +556,16 @@ deallocate_sectors (size_t start UNUSED, block_sector_t *sectors,
   free_map_release_nc (sectors, cnt);
   return true;
 }
+
+/* For your reference:
+
+    struct buffer_aux {
+      void *buffer;
+      off_t size;
+      off_t pos;
+      off_t offset;
+    }
+*/
 
 static bool
 write_to_sectors (size_t start, block_sector_t *sectors,

@@ -7,8 +7,6 @@
 /* Stats. */
 size_t cache_misses;    	/* Number of cache misses. */
 size_t cache_hits;       	/* Number of cache hits. */
-size_t disk_reads;       	/* Number of disk reads. */
-size_t disk_writes;      	/* Number of disk writes. */
 
 void buffer_cache_init (void);
 

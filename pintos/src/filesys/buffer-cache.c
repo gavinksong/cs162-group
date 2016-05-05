@@ -52,14 +52,12 @@ buffer_cache_init (void)
   // Stats.
   cache_misses = 0;
   cache_hits = 0;
-  disk_reads = 0;
-  disk_writes = 0;
 }
 
 /* Checks if SECTOR is in the buffer cache, and if it is not,
    loads SECTOR into a cache block. "Locks" the corresponding
    cache entry until buffer_cache_release () is called.
-   Returns the cache block containing the data from SECTOR. */
+   Returns the cache block containing SECTOR's contents. */
 void *
 buffer_cache_get (block_sector_t sector)
 {
@@ -70,10 +68,8 @@ buffer_cache_get (block_sector_t sector)
   cache_miss = find_entry (sector, &e);
   lock_release (&cache_lock);
 
-  if (!cache_miss) {
+  if (!cache_miss)
     block_read (fs_device, sector, index_to_block (e->index));
-    disk_reads++;
-  }
 
   return index_to_block (e->index);
 }
@@ -112,7 +108,6 @@ buffer_cache_flush (void)
   for (; i < NUM_SECTORS; i++)
     if (entries[i] != NULL && entries[i]->dirty && !bitmap_test (usebits, i)) {
       block_write (fs_device, entries[i]->sector, index_to_block (i));
-      disk_writes++;
       entries[i]->dirty = false;
     }
   lock_release (&cache_lock);
@@ -127,8 +122,7 @@ buffer_cache_read (block_sector_t sector, void *buffer)
   buffer_cache_release (cache_block, false);
 }
 
-/* Writes BLOCK_SECTOR_SIZE bytes from BUFFER into the
-   cache block holding SECTOR. */
+/* Writes BLOCK_SECTOR_SIZE bytes from BUFFER into SECTOR. */
 void
 buffer_cache_write (block_sector_t sector, void *buffer)
 {
@@ -143,7 +137,9 @@ buffer_cache_write (block_sector_t sector, void *buffer)
   buffer_cache_release (cache_block, true);
 }
 
-/* Resets the cache and stats. May PANIC if cache is in use. */
+/* Resets the cache and stats.
+   May PANIC if cache is in use.
+   Use only for testing purposes. */
 void
 buffer_cache_reset (void)
 {
@@ -154,6 +150,7 @@ buffer_cache_reset (void)
   /* It's your fault if this causes a panic. */
   ASSERT (bitmap_none (usebits, 0, NUM_SECTORS));
 
+  /* Clear all entries. */
   size_t i;
   for (i = 0; i < NUM_SECTORS; i++)
     if (entries[i] != NULL) {
@@ -161,15 +158,14 @@ buffer_cache_reset (void)
       free (entries[i]);
       entries[i] = NULL;
     }
-  bitmap_set_all (refbits, false);
 
-  /* It's our fault if this causes a panic. */
   ASSERT (hash_size (&hashmap) == 0);
 
+  bitmap_set_all (refbits, false);
+
+  /* Reset stats. */
   cache_misses = 0;
   cache_hits = 0;
-  disk_reads = 0;
-  disk_writes = 0;
 
   lock_release (&cache_lock);
 }
@@ -180,14 +176,17 @@ index_to_block (size_t index) {
   return cache_base + BLOCK_SECTOR_SIZE * index;
 }
 
-/* cache_lock should be acquired before calling this function.
-   Returns true if there was a cache hit, false otherwise. */
+/* Checks if SECTOR is in the buffer cache, and if it is not,
+   allocates a cache block for it. "Locks" the corresponding
+   cache entry and stores it in ENTRY.
+   Returns true on a cache hit, false otherwise. */
 static bool
 find_entry (block_sector_t sector, struct entry **entry)
 {
   struct entry *e = malloc (sizeof (struct entry));
   e->sector = sector;
 
+  /* Wait if all the cache blocks are in use. */
   while (bitmap_all (usebits, 0, NUM_SECTORS))
     cond_wait (&cache_queue, &cache_lock);
 
@@ -195,20 +194,21 @@ find_entry (block_sector_t sector, struct entry **entry)
   if (found == NULL) {
     cache_misses++;
 
+    /* Clock algorithm. */
     while (bitmap_test (refbits, clock_hand) || bitmap_test (usebits, clock_hand)) {
       bitmap_reset (refbits, clock_hand);
       clock_hand = (clock_hand + 1) % NUM_SECTORS;
     }
 
+    /* Evict entry and write contents to disk. */
     struct entry *old_entry = entries[clock_hand];
     if (old_entry != NULL) {
       block_write (fs_device, old_entry->sector, index_to_block (old_entry->index));
-      disk_writes++;
-
       hash_delete (&hashmap, &old_entry->elem);
       free (old_entry);
     }
 
+    /* Initialize new entry. */
     cond_init (&e->queue);
     e->dirty = false;
     e->index = clock_hand;
@@ -221,6 +221,7 @@ find_entry (block_sector_t sector, struct entry **entry)
     e = hash_entry (found, struct entry, elem);
   }
 
+  /* Wait for your turn to acquire entry. */
   while (bitmap_test (usebits, e->index))
     cond_wait (&e->queue, &cache_lock);
   bitmap_mark (usebits, e->index);
@@ -229,6 +230,9 @@ find_entry (block_sector_t sector, struct entry **entry)
   return (found != NULL);
 }
 
+/* Just returns the sector number. The hash map automagically
+   grows its number of buckets in powers of two and masks
+   off the appropriate number of higher nibble bits. */
 unsigned
 hash_function (const struct hash_elem *e, void *aux UNUSED)
 {
