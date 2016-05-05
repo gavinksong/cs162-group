@@ -11,6 +11,8 @@ it, re-open it, and read it sequentially again, to make sure that the cache hit 
 
 We added `buffer_reset()` and `buffer_stat(int)` syscalls to reset the buffer_cache before any readings and get the number of cache hits/misses to calculate the hit rate. 
 
+We remove the file created right before the test ends.
+
 - If the kernel did not have buffer cache implemented, the writing procedure would be very long and the hit rate would not     improve at all
 - If the kernel did not have the resetting buffer cache feature implement, the cache might not be cold in the first place and   the hit rate might not be accurate.
 
@@ -80,6 +82,8 @@ This test is to check the buffer cache’s ability to write full blocks to disk 
 200 blocks of contents are written into a file first and then use the syscall `buffer_stat(int)` to get the 
 number of block_read. After writing 200 blocks to the file, the number of `block_read` is printed out, which is 1 
 because there is a read of inode metadata.
+
+We remove the file created right before the test ends.
 
 ###### my-test-2.output
 ```
