@@ -61,6 +61,7 @@ filesys_create (const char *name, off_t initial_size, bool isdir)
                  && free_map_allocate (1, &inode_sector)
                  && inode_create (inode_sector, initial_size, isdir)
                  && dir_add (dir, filename, inode_sector);
+
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
   dir_close (dir);
@@ -102,24 +103,26 @@ filesys_remove (const char *name)
   return success;
 }
 
+/* Changes the current working directory of the
+  current thread to the directory located at PATH.
+  Returns true is successful, false otherwise. */
 bool
 filesys_chdir (const char *path)
 {
+  struct thread *t = thread_current ();
   struct dir *dir = NULL;
   char filename[NAME_MAX + 1];
   struct inode *inode = NULL;
-  struct thread *t = thread_current ();
-
-  if (follow_path (path, &dir, filename))
-    dir_lookup (dir, filename, &inode);
+  
+  bool success = follow_path (path, &dir, filename)
+                 && dir_lookup (dir, filename, &inode);
   dir_close (dir);
 
-  if (inode != NULL) {
+  if (success) {
     inode_close (t->cwd);
     t->cwd = inode;
-    return true;
   }
-  return false;
+  return success;
 }
 
 /* Formats the file system. */
@@ -135,7 +138,8 @@ do_format (void)
 }
 
 /* Stores the name of the file referenced by PATH in
-   FILENAME, and the directory in DIR.
+   FILENAME, and the directory in DIR. If the file is
+   a directory, FILENAME is set to ".".
    Returns false if the path is invalid or an error occurs,
    true otherwise. */
 static bool
@@ -145,9 +149,11 @@ follow_path (const char *path, struct dir **dir_,
   struct inode *inode;
   struct inode *next;
 
+  /* Empty path name. */
   if (path[0] == '\0')
     return false;
   
+  /* Absolute or relative path name. */
   if (path[0] == '/')
     inode = next = inode_open (ROOT_DIR_SECTOR);
   else

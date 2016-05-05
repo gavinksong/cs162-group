@@ -41,6 +41,9 @@ enum block_type
 
 const char *block_type_name (enum block_type);
 
+unsigned long long block_read_cnt (struct block* block);
+unsigned long long block_write_cnt (struct block* block);
+
 /* Finding block devices. */
 struct block *block_get_role (enum block_type);
 void block_set_role (enum block_type, struct block *);

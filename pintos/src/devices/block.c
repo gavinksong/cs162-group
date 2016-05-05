@@ -48,6 +48,18 @@ block_type_name (enum block_type type)
   return block_type_names[type];
 }
 
+unsigned long long
+block_read_cnt (struct block *block)
+{
+  return block->read_cnt;
+}
+
+unsigned long long
+block_write_cnt (struct block *block)
+{
+  return block->write_cnt;
+}
+
 /* Returns the block device fulfilling the given ROLE, or a null
    pointer if no block device has been assigned that role. */
 struct block *

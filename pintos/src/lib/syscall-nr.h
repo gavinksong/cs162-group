@@ -30,7 +30,8 @@ enum
     SYS_READDIR,                /* Reads a directory entry. */
     SYS_ISDIR,                  /* Tests if a fd represents a directory. */
     SYS_INUMBER,                /* Returns the inode number for a fd. */
-    SYS_BUFFER_STAT             /* Return Buffer Cache statistics */
+    SYS_BUFFER_STAT,            /* Return Buffer Cache statistics */
+    SYS_BUFFER_RESET            /* Resets the Buffer Cache */
   };
 
 #endif /* lib/syscall-nr.h */

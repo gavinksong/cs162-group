@@ -46,4 +46,5 @@ bool readdir (int fd, char name[READDIR_MAX_LEN + 1]);
 bool isdir (int fd);
 int inumber (int fd);
 int buffer_stat (int statnum);
+void buffer_reset (void);
 #endif /* lib/user/syscall.h */

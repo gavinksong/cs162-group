@@ -9,6 +9,10 @@
 static struct file *free_map_file;   /* Free map file. */
 static struct bitmap *free_map;      /* Free map, one bit per sector. */
 
+/* We maintain a lock to synchronize free map operations that
+   can also be acquired from the outside. If the lock is already
+   held by the current thread, we ignore it. See macros below. */
+
 static bool ignore_lock;
 
 #define acquire_lock(LOCK) do {                                 \
@@ -58,8 +62,19 @@ free_map_allocate (size_t cnt, block_sector_t *sectorp)
   return sector != BITMAP_ERROR;
 }
 
+/* Makes CNT sectors starting at SECTOR available for use. */
+void
+free_map_release (block_sector_t sector, size_t cnt)
+{
+  ASSERT (bitmap_all (free_map, sector, cnt));
+  acquire_lock (&free_map_lock);
+  bitmap_set_multiple (free_map, sector, cnt, false);
+  bitmap_write (free_map, free_map_file);
+  release_lock (&free_map_lock);
+}
+
 /* Allocates CNT nonconsecutive sectors from the free map and stores
-   the first into *SECTORP.
+   each of them in *SECTORS.
    Returns true if successful, false if not enough sectors were
    available. */
 bool
@@ -82,6 +97,7 @@ free_map_allocate_nc (size_t cnt, block_sector_t *sectors)
   return success;
 }
 
+/* Makes the first CNT sectors in SECTORS available for use. */
 void
 free_map_release_nc (block_sector_t *sectors, size_t cnt)
 {
@@ -92,17 +108,6 @@ free_map_release_nc (block_sector_t *sectors, size_t cnt)
     bitmap_reset (free_map, sectors[i]);
     sectors[i] = 0;
   }
-  bitmap_write (free_map, free_map_file);
-  release_lock (&free_map_lock);
-}
-
-/* Makes CNT sectors starting at SECTOR available for use. */
-void
-free_map_release (block_sector_t sector, size_t cnt)
-{
-  ASSERT (bitmap_all (free_map, sector, cnt));
-  acquire_lock (&free_map_lock);
-  bitmap_set_multiple (free_map, sector, cnt, false);
   bitmap_write (free_map, free_map_file);
   release_lock (&free_map_lock);
 }
@@ -150,6 +155,7 @@ free_map_create (void)
   release_lock (&free_map_lock);
 }
 
+/* Returns the number of sectors available for use. */
 size_t
 free_map_available_space (void)
 {
