@@ -192,5 +192,11 @@ inumber (int fd)
 int
 buffer_stat(int statnum)
 {
-    return syscall1 (SYS_BUFFER_STAT, statnum);
+  return syscall1 (SYS_BUFFER_STAT, statnum);
+}
+
+void
+buffer_reset()
+{
+  syscall0 (SYS_BUFFER_RESET);
 }

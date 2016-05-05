@@ -63,6 +63,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_CHDIR:
     case SYS_CLOSE:
     case SYS_BUFFER_STAT:
+    case SYS_BUFFER_RESET:
       check_ptr (&args[1], sizeof (uint32_t));
   }
 
@@ -162,6 +163,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = disk_reads;
       else if (args [1] == 3)
         f->eax = disk_writes;
+    }
+    else if(args[0] == SYS_BUFFER_RESET){
+      buffer_cache_reset();
     }
   }
 }
