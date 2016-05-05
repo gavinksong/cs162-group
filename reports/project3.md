@@ -83,6 +83,8 @@ because there is a read and write of inode metadata.
 
 We remove the file created right before the test ends.
 
+- If the kernel makes unnecessary calls to block_read every time it writes a block to disk, the number of times block_read    is called would exceed 200.
+- If the kernel does not support extensible files, then 200 blocks would be greater than the maximum file size. In this       case, number of block_writes called would be less than 200. Depending on how the kernel is implemented, there may also be   an error.
 ###### my-test-2.output
 ```
 Copying tests/filesys/extended/my-test-2 to scratch partition...
