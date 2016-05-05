@@ -49,15 +49,15 @@ block_type_name (enum block_type type)
 }
 
 unsigned long long
-block_nreads (struct block *block)
+block_read_cnt (struct block *block)
 {
   return block->read_cnt;
 }
 
 unsigned long long
-block_nwrites (struct block *block)
+block_write_cnt (struct block *block)
 {
-  return block->read_cnt;
+  return block->write_cnt;
 }
 
 /* Returns the block device fulfilling the given ROLE, or a null
