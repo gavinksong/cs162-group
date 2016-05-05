@@ -120,14 +120,26 @@ syscall_handler (struct intr_frame *f UNUSED)
     f->eax = filesys_create ((char *) args[1], args[2], false);
   else if (args[0] == SYS_REMOVE)
     f->eax = filesys_remove ((char *) args[1]);
-  else if(args[0] == SYS_MKDIR)
+  else if (args[0] == SYS_MKDIR)
     f->eax = filesys_create ((char *) args[1], 0, true);
-  else if(args[0] == SYS_CHDIR)
+  else if (args[0] == SYS_CHDIR)
     f->eax = filesys_chdir ((char *) args[1]);
   else if (args[0] == SYS_OPEN) {
     struct file *file_ = filesys_open ((char *) args[1]);
     f->eax = file_ ? add_file_to_process (file_) : -1;
   }
+  else if (args[0] == SYS_BUFFER_STAT) {
+    if (args[1] == 0)
+      f->eax = cache_misses;
+    else if (args[1] == 1)
+      f->eax = cache_hits;
+    else if (args [1] == 2)
+      f->eax = block_read_cnt (fs_device);
+    else if (args [1] == 3)
+      f->eax = block_write_cnt (fs_device);
+  }
+  else if (args[0] == SYS_BUFFER_RESET)
+    buffer_cache_reset ();
   else {
     // For the remaining syscalls, args[1] is a file descriptor.
     struct fnode *fn = get_file_from_fd (args[1]);
@@ -137,35 +149,22 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = file_length (fn->file);
     else if (args[0] == SYS_READ)
       f->eax = file_isdir (fn->file) ? -1 : file_read (fn->file, (void *) args[2], args[3]);
-    else if(args[0] == SYS_WRITE)
+    else if (args[0] == SYS_WRITE)
       f->eax = file_isdir (fn->file) ? -1 : file_write (fn->file, (void *) args[2], args[3]);
-    else if(args[0] == SYS_SEEK)
+    else if (args[0] == SYS_SEEK)
       file_seek (fn->file, args[2]);
-    else if(args[0] == SYS_TELL)
+    else if (args[0] == SYS_TELL)
       f->eax = file_tell (fn->file);
-    else if(args[0] == SYS_ISDIR)
+    else if (args[0] == SYS_ISDIR)
       f->eax = file_isdir (fn->file);
-    else if(args[0] == SYS_INUMBER)
+    else if (args[0] == SYS_INUMBER)
       f->eax = file_inumber (fn->file);
-    else if(args[0] == SYS_READDIR)
+    else if (args[0] == SYS_READDIR)
       f->eax = dir_readdir ((struct dir *) fn->file, (char *) args[2]);
-    else if(args[0] == SYS_CLOSE) {
+    else if (args[0] == SYS_CLOSE) {
       file_close (fn->file);
       list_remove (&fn->elem);
       free (fn);
-    }
-    else if(args[0] == SYS_BUFFER_STAT){
-      if (args[1] == 0)
-        f->eax = cache_misses;
-      else if (args[1] == 1)
-        f->eax = cache_hits;
-      else if (args [1] == 2)
-        f->eax = (int) block_read_cnt (fs_device);
-      else if (args [1] == 3)
-        f->eax = (int) block_write_cnt (fs_device);
-    }
-    else if(args[0] == SYS_BUFFER_RESET){
-      buffer_cache_reset();
     }
   }
 }

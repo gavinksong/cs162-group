@@ -143,26 +143,35 @@ buffer_cache_write (block_sector_t sector, void *buffer)
   buffer_cache_release (cache_block, true);
 }
 
-/* Resets the cache and stats. */
+/* Resets the cache and stats. May PANIC if cache is in use. */
 void
 buffer_cache_reset (void)
 {
+  buffer_cache_flush ();
+
   lock_acquire (&cache_lock);
 
-  ASSERT (bitmap_none (usebits, 0, 64));
+  /* It's your fault if this causes a panic. */
+  ASSERT (bitmap_none (usebits, 0, NUM_SECTORS));
 
   size_t i;
   for (i = 0; i < NUM_SECTORS; i++)
     if (entries[i] != NULL) {
       hash_delete (&hashmap, &entries[i]->elem);
       free (entries[i]);
+      entries[i] = NULL;
     }
   bitmap_set_all (refbits, false);
+
+  /* It's our fault if this causes a panic. */
+  ASSERT (hash_size (&hashmap) == 0);
 
   cache_misses = 0;
   cache_hits = 0;
   disk_reads = 0;
   disk_writes = 0;
+
+  lock_release (&cache_lock);
 }
 
 /* Returns a pointer to the (INDEX + 1)th cache block. */
