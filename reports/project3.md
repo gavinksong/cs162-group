@@ -1,6 +1,18 @@
 Final Report for Project 3: File System
 =======================================
 
+This project was definitely the most difficult of the three we completed this semester. We made several modifications to the design since we completed the initial design document. These changes are listed below.
+
+##### Buffer Cache
+Our current implementation now uses the pre-existing hash map structure defined in `hash.c`. Furthermore, we replaced "use counts", which allowed several threads to operate on the same cache block simultaneously, with "use bits" and condition variables to synchronize cache block accesses. Otherwise, our buffer cache behaves more or less the same externally as outlined in our initial design, with the added bonus of write-behinds. We also added a few more simple functions to the interface (see `filesys/buffer-cache.h`).
+
+##### Extensible Files
+In our design document, we omitted the particulars of the "inode resizing" implementation, because we didn't expect to try anything too different from what we already covered in class. However, we did. In terms of implementation, we wrote and utilized a function that applies a given function on a range of data sectors for a given inode (see `filesys/inode.c`). Our implementation will also behave slightly differently because we added a lock on the free map that can be acquired from the outside (see `filesys/free_map.c`), which we use to fail early when there aren't enough sectors to allocate. This essentially means that we can only allocate blocks for one file at a time: a potential bottleneck if we make too many disk accesses without releasing the free map lock. Although the `buffer_cache_write ()` function we use to zero out new blocks doesn't read from disk, it will probably force another block to be written back to the cache, so this is a likely issue. However, for mass allocations, which would cause the biggest problems, the effects can be largely mitigated by implementing read-ahead for the buffer cache. So if we were to continue working on this project, that's what we would implement next.
+
+##### Subdirectories
+We modified the behavior of `follow_path ()` slightly. It's a little bit weird, but for non-directory files, we return the name of the file in FILENAME and its parent directory in DIR. For directories, we return "." in FILENAME and the directory itself in DIR. We also moved the part of our code that deals with "." and ".." to `dir_lookup ()`. We also realized that in order to make `dir_remove ()` work, we needed to either write code that uses an inode's sector number to find the offset of its entry in its parent directory, or store the filename or the offset itself on the disk inode. We decided to go with the latter option. Finally, we ended up writing a bunch of getter functions for the filesys metadata stored in inodes, as well as `inode_add_file ()` and `inode_remove_file ()`, which are used by `dir_add ()` and `dir_remove ()` respectively.
+
+
 Student Testing Report
 =========================================
 
